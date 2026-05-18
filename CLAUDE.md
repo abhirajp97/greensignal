@@ -15,6 +15,8 @@ This is a living document. Update it proactively — without waiting to be asked
 
 Edit only the affected section. Do not rewrite sections that are still accurate.
 
+**Also update `docs/FILE_MAP.md`** whenever a file is added, removed, renamed, or its status changes (stub → implemented). The status column (`🔲 Stub` / `✅ Done` / `✅ Working`) should always reflect reality.
+
 ---
 
 ## What GreenSignal Is
