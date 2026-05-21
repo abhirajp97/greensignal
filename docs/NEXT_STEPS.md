@@ -14,7 +14,7 @@ The skeleton is built and the architecture is locked. The immediate work is impl
 
 ## Up next (in order)
 
-- [ ] **Register for Nasdaq Data Link** at `data.nasdaq.com` — get API key, add to `.env`
+- [ ] **Register for Nasdaq Data Link** at `data.nasdaq.com` — get API key, add to `.env` ← **do this before next session starts**
 - [ ] **Implement `domains/coffee/sources/ice_coffee_c.py`** — fetch `CHRIS/ICE_KC1` daily close, return `list[MarketObservation]`
 - [ ] **Run `notebooks/coffee_backtests/01_ice_price_signal.ipynb`** — compute `price_position_52w`, validate r ≥ +0.50 vs Phase 0 gate
 - [ ] **Implement `domains/coffee/sources/noaa_enso.py`** — parse NOAA ONI fixed-width text, handle year-boundary seasons carefully
@@ -46,6 +46,11 @@ The skeleton is built and the architecture is locked. The immediate work is impl
 | `make verify` is the pre-commit gate | Import boundary + lint + tests in one command |
 | Repo is public on GitHub | Required for branch protection on free plan; no secrets in code |
 | `@anshquant` added as Admin collaborator | Anshumaan Gandhi — co-developer |
+| `.claude/settings.json` added to repo | Ruff auto-format on every Edit/Write; `.env` write blocked at hook level |
+| `.mcp.json` added to repo | GitHub + Supabase MCP servers wired; auth via env vars, not secrets in config |
+| `implement-source` skill created | Enforces consistent source contract — prevents drift across 5 implementations |
+| `backtest-notebook` skill created | Enforces consistent notebook structure — all 6 notebooks follow same template |
+| `data-source-reviewer` agent created | Independent review gate before any source is merged |
 
 ---
 

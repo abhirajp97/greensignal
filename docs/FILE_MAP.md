@@ -13,6 +13,18 @@ Every file in the repo, what it does, and its current status. Update this whenev
 | `.gitignore` | Keeps `.env`, `.venv`, `__pycache__`, notebook checkpoints out of git. |
 | `Makefile` | `lint`, `test`, `check-imports` (enforces `core/` never imports `domains/`), `verify` (all three). |
 | `CLAUDE.md` | Instructions for Claude Code — architecture rules, commands, signal formulas, build sequence. |
+| `.mcp.json` | MCP server config — GitHub (`@modelcontextprotocol/server-github`) and Supabase (`@supabase/mcp-server-supabase`). Auth via env vars `GITHUB_TOKEN` and `SUPABASE_ACCESS_TOKEN`. |
+
+---
+
+## `.claude/` — Claude Code automation (not shipped to production)
+
+| File | Purpose |
+|------|---------|
+| `.claude/settings.json` | Project-level hooks: PostToolUse Ruff auto-format on Edit/Write; PreToolUse `.env` write block. |
+| `.claude/skills/implement-source/SKILL.md` | Skill: step-by-step contract for implementing any `domains/coffee/sources/` stub — return type, SourceRun, error handling, test requirements. |
+| `.claude/skills/backtest-notebook/SKILL.md` | Skill: template and steps for the 6 validation notebooks — fetch → QC → feature → correlation → gate → summary. |
+| `.claude/agents/data-source-reviewer.md` | Subagent: reviews a completed source implementation before merge — contract, error handling, tests, docs. Returns APPROVED or NEEDS WORK. |
 
 ---
 

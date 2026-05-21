@@ -155,6 +155,25 @@ Price position drives timing. Supply/climate signals amplify conviction when the
 | Tests | pytest + pytest-asyncio |
 | Notebooks | Jupyter |
 
+---
+
+## Claude Code Automation Layer
+
+### Hooks (`.claude/settings.json`)
+- **PostToolUse (Edit|Write):** Ruff auto-formats every file after each edit — no manual `make format` needed
+- **PreToolUse (Write|Edit):** Blocks any write to `.env` — secrets must be managed manually, never by Claude
+
+### MCP Servers (`.mcp.json`)
+- **`github`** — `@modelcontextprotocol/server-github`, auth via `GITHUB_TOKEN` env var. Use for PR management, issue triage, branch operations
+- **`supabase`** — `@supabase/mcp-server-supabase`, auth via `SUPABASE_ACCESS_TOKEN`. Use when wiring storage in Phase 1
+
+### Skills (`.claude/skills/`)
+- **`implement-source`** — Step-by-step contract checklist for implementing any `domains/coffee/sources/` stub. Enforces return types, SourceRun logging, error handling, and test requirements
+- **`backtest-notebook`** — Template and steps for creating the 6 validation notebooks. Enforces standard structure (fetch → quality check → feature → correlation → gate → summary)
+
+### Agents (`.claude/agents/`)
+- **`data-source-reviewer`** — Specialized subagent for reviewing a completed source implementation. Run before merging: checks contract compliance, error handling, tests, and documentation. Returns APPROVED or NEEDS WORK verdict
+
 ## Commands
 
 ```bash

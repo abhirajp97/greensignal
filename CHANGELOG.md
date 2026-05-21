@@ -16,6 +16,21 @@ Planned but not yet merged to `main`:
 
 ---
 
+## [0.3.0] — 2026-05-21
+
+### Added
+- `.claude/settings.json` — project-level hooks: Ruff auto-format on every Edit/Write; hard block on `.env` writes
+- `.mcp.json` — GitHub MCP (`@modelcontextprotocol/server-github`) and Supabase MCP (`@supabase/mcp-server-supabase`) wired via env vars
+- `.claude/skills/implement-source/SKILL.md` — custom skill enforcing the source implementation contract (return type, SourceRun, error handling, test requirements, doc updates)
+- `.claude/skills/backtest-notebook/SKILL.md` — custom skill with full notebook template for all 6 validation notebooks
+- `.claude/agents/data-source-reviewer.md` — subagent for pre-merge review of source implementations; returns APPROVED or NEEDS WORK verdict
+
+### Changed
+- `CLAUDE.md` — added "Claude Code Automation Layer" section documenting hooks, MCP servers, skills, and agents
+- `docs/FILE_MAP.md` — added `.claude/` and root `.mcp.json` entries
+
+---
+
 ## [0.2.0] — 2026-05-18
 
 ### Added
