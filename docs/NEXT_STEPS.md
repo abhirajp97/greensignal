@@ -15,10 +15,11 @@ The skeleton is built and the architecture is locked. The immediate work is impl
 ## Up next (in order)
 
 - [ ] **Register for Nasdaq Data Link** at `data.nasdaq.com` — get API key, add to `.env` ← **do this before next session starts**
-- [ ] **Implement `domains/coffee/sources/ice_coffee_c.py`** — fetch `CHRIS/ICE_KC1` daily close, return `list[MarketObservation]`
-- [ ] **Run `notebooks/coffee_backtests/01_ice_price_signal.ipynb`** — compute `price_position_52w`, validate r ≥ +0.50 vs Phase 0 gate
-- [ ] **Implement `domains/coffee/sources/noaa_enso.py`** — parse NOAA ONI fixed-width text, handle year-boundary seasons carefully
-- [ ] **Run `notebooks/coffee_backtests/02_enso_signal.ipynb`** — apply 24m lag, validate r ≤ −0.20
+- [x] **Implement `domains/coffee/sources/ice_coffee_c.py`** — fetch `CHRIS/ICE_KC1` daily close, return `list[MarketObservation]`
+- [x] **Run `notebooks/coffee_backtests/01_ice_price_signal.ipynb`** — ALL GATES PASS: contemp r=+0.852, cost saving=+10.73% (full-history) / +3.71% walk-forward (12/12 years positive), zone monotone; momentum baseline −10.37% validates contrarian; 104w window +15.01%
+- [x] **Implement `domains/coffee/sources/world_bank_commodity.py`** — World Bank Pink Sheet; Arabica + Robusta physical prices (free, no auth); two-step fetch (scrape page → download Excel); 15 tests pass
+- [x] **Implement `domains/coffee/sources/noaa_enso.py`** — 26 tests passing; NDJ year-boundary handled; -99.9 sentinel skipped
+- [x] **Run `notebooks/coffee_backtests/02_enso_signal.ipynb`** — gate FAILS at 24m lag (r=−0.127); signal strongest contemporaneously (r=−0.338); ENSO revised to current-state amplifier role in composite
 - [ ] **Implement `domains/coffee/sources/cot.py`** — download CFTC disaggregated annual CSVs, filter to `COFFEE C - ICE FUTURES U.S.`, compute COT index
 - [ ] **Run `notebooks/coffee_backtests/03_cot_signal.ipynb`** — validate r ≥ +0.08
 - [ ] **Download USDA PSD bulk CSV** — implement `usda_psd.py`, run notebook 04
@@ -69,4 +70,25 @@ See `notebooks/coffee_backtests/README.md` for the full table. Summary:
 
 ---
 
-*Last updated: 2026-05-18 — end of skeleton + repo setup session*
+---
+
+## Decisions made this session
+
+| Decision | Rationale |
+|----------|-----------|
+| `fetch()` returns `tuple[list[MarketObservation], SourceRun]` | Skill contract — sources log their own run metadata; storage is the job's responsibility |
+| Use `Settle` column (not `Last`) for ICE KC price | Settlement price is the official exchange close; `Last` is the final trade and can differ |
+| `raw` field stores `dict(zip(column_names, row))` | More useful than a bare list; survives column reordering |
+| `datetime.now(UTC)` instead of `utcnow()` | `utcnow()` deprecated in Python 3.12+ |
+| `data_quality.py` stubs implemented | Required for `ice_coffee_c.py` to call gap/range checks |
+| `core/models/__init__.py` bug fixed | Was importing `Scenario` (doesn't exist); corrected to `ScenarioInput`, `ScenarioOutput` |
+| Nasdaq Data Link CHRIS requires paid plan | API returns 403 for CHRIS database; backtest uses Yahoo Finance `KC=F` (equivalent instrument) |
+| L1 gate redefined: 3 tests instead of 1 | Phase 0 r=+0.64 was contemporaneous (trivially high); corrected to contemp r + cost-saving + zone monotonicity |
+| Arabica mean-reversion is 24m, not 12m | Forward predictive r peaks at 24m lag (r=+0.20); at 12m r≈0 due to momentum-then-revert pattern |
+| Real cost-saving is 10.73%, not 2.2% | Phase 0 synthetic underestimated because real prices had more extreme episodes (2024 spike etc.) |
+
+| Walk-forward cost saving is +3.71% (not +10.73%) | Full-history number is in-sample; walk-fwd is the honest out-of-sample estimate — cite this in product/investor comms |
+| Momentum baseline is −10.37% vs naive | Trend-following hurts for coffee procurement; contrarian approach validated decisively |
+| 104w window (+15.01%) outperforms 52w (+12.95%) | Noted for future composite tuning; not changing current L1 signal until all 5 signals validated |
+
+*Last updated: 2026-05-21 — 01_ice_price_signal.ipynb extended with §7 walk-forward and §8 signal variants; all gates still PASS*

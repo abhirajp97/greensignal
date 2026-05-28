@@ -116,23 +116,34 @@ Output range: 0.4× (strong caution) → 2.3× (high conviction buy)
 
 Price position drives timing. Supply/climate signals amplify conviction when they agree.
 
-| Layer | Signal | Source | Validated r |
-|-------|--------|--------|-------------|
-| L1 | 52-week price position | ICE KC=F via Nasdaq Data Link `CHRIS/ICE_KC1` | +0.64 |
-| L2a | Stocks-to-use % | USDA PSD (`apps.fas.usda.gov/psdonline`) | −0.35 |
-| L2b | ENSO ONI, 24m lag | NOAA CPC (`cpc.ncep.noaa.gov/data/indices/oni.ascii.txt`) | −0.30 |
-| L3 | Brazil CHIRPS rainfall (Minas Gerais) | Google Earth Engine or `data.chc.ucsb.edu` | +0.21 |
-| L5 | COT speculative net (contrarian) | CFTC disaggregated report (`cftc.gov`) | +0.15 |
+| Layer | Signal | Source | Phase 0 r | Real-data r |
+|-------|--------|--------|-----------|-------------|
+| L1 | 52-week price position | ICE KC=F / Yahoo Finance `KC=F` | +0.64 (contemp) | **+0.852 (contemp); +0.201 @ 24m fwd** ✅ |
+| L2a | Stocks-to-use % | USDA PSD (`apps.fas.usda.gov/psdonline`) | −0.35 | pending |
+| L2b | ENSO ONI, 24m lag | NOAA CPC (`cpc.ncep.noaa.gov/data/indices/oni.ascii.txt`) | −0.30 | **−0.127 @ 24m lag (FAIL); −0.338 contemporaneous** — signal peaks at 0–7m; revised to current-state amplifier |
+| L3 | Brazil CHIRPS rainfall (Minas Gerais) | Google Earth Engine or `data.chc.ucsb.edu` | +0.21 | pending |
+| L5 | COT speculative net (contrarian) | CFTC disaggregated report (`cftc.gov`) | +0.15 | pending |
+
+**L1 r clarification:** The Phase 0 r = +0.64 was the *contemporaneous* `r(price_pos_52w, trailing_12m_yoy)` — not a forward-predictive r. Real data confirms it at +0.852. Forward predictive r peaks at 24m (r = +0.20, p < 0.01) — arabica trends for ~12m then mean-reverts over 24m.
 
 ---
 
 ## Data Sources & Key Quirks
 
-**ICE KC=F (price):** Use `CHRIS/ICE_KC1` continuous adjusted series — avoids manual front-month roll management. Month-end close for backtest.
+**ICE KC=F (price):** Use `CHRIS/ICE_KC1` continuous adjusted series — avoids manual front-month roll management. Month-end close for backtest. Response columns: `["Date", "Open", "High", "Low", "Last", "Change", "Settle", "Volume", "Previous Day Open Interest"]`. Use **`Settle`** (official exchange settlement), not `Last` (final trade, can differ). Look up column index dynamically from `column_names` — do not hardcode position.
+
+**Source `fetch()` contract:** All sources return `tuple[list[MarketObservation | FeatureObservation], SourceRun]`. The `SourceRun` is always returned (even on failure). `records_stored` is always `0` — persisting to the database is the job's responsibility, not the source's. Use `datetime.now(UTC)` (not `utcnow()`) for timestamps.
 
 **USDA PSD (stocks-to-use):** Bulk CSV download, no auth. Commodity `0711100` = Coffee Green, country `0000` = World. `attribute_id` 176 = Ending Stocks, 57 = Domestic Consumption. Values are retroactively revised — log each monthly release in production to track vintage snapshots.
 
-**NOAA ENSO ONI:** Fixed-width text (not CSV). Seasons span year boundaries — handle year attribution carefully when parsing. Apply 18m and 24m lags for signal generation.
+**NOAA ENSO ONI:** Fixed-width text (not CSV). Space-delimited, 4 columns: `SEAS YR TOTAL ANOM`. We use `ANOM` (the ONI anomaly in °C). Missing-value sentinel: `-99.9` — skip silently, do not treat as parse error.
+- **Year-boundary rule:** NOAA's `YR` is the calendar year of the MIDDLE month of the season. `NDJ` is the only season whose final month (January) falls in `YR+1`. All other seasons end in `YR`. Implementation: `end_year = yr + 1 if season == "NDJ" else yr`.
+- **Date assignment:** Use the last day of the season's final month (`calendar.monthrange`). Example: `DJF 1950 → 1950-02-28`; `NDJ 1950 → 1951-01-31`.
+- **Asset:** `climate:enso:oni` (type `climate_signal`, domain `coffee`). Returns `FeatureObservation` with `feature_name="oni_anom"`, not `MarketObservation`.
+- **`enso_risk_score(oni)`:** Linear, clamped `max(0, min(1, 0.5 - oni/3.0))`. ONI ≤ −1.5 → risk=1.0 (strong La Niña); ONI=0 → risk=0.5 (neutral); ONI ≥ +1.5 → risk=0.0. La Niña (negative ONI) drives higher supply risk because it causes drought in Brazil and Vietnam 18–24 months later.
+- Apply **18m and 24m lags** before correlating with Arabica prices in the composite.
+
+**World Bank Pink Sheet (physical coffee prices):** Free, no auth. Source file `world_bank_commodity.py`. Two-step fetch: (1) GET `https://www.worldbank.org/en/research/commodity-markets` to scrape the current Excel download URL (URL embeds a monthly hash — cannot be hardcoded); (2) download and parse `CMO-Historical-Data-Monthly.xlsx`, sheet `Monthly Prices`. Series `COFFEE_ARABIC` (Other Mild Arabicas — proxy for ICO Arabica indicator; Colombia, Kenya, Tanzania washed coffees) and `COFFEE_ROBUS` (Robusta — proxy for ICO Robusta indicator). Source units are USD/kg; always convert to USc/lb (× 100/2.20462 = × 45.3592) for consistency with KC=F. Column header row is index 6 (machine codes) — locate columns dynamically, never hardcode positions. Date format: `"YYYYMmm"` (e.g. `"2026M04"`) → last day of that month. NaN values = data not yet published for that month — skip silently (not a parse error). **pandas quirk:** when reading the code-row with `df.iloc[6].astype(str)`, columns whose dtype is `float64` (because rows above them had NaN) keep `np.float64(nan)` as actual floats even after `astype(str)`; always do `df.iloc[row].fillna("").astype(str)` before string comparisons. Assets: `WB_ARABICA_BENCHMARK` (`coffee:benchmark:wb:arabica`) and `WB_ROBUSTA_BENCHMARK` (`coffee:benchmark:wb:robusta`) in `domains/coffee/registry/assets.py`.
 
 **CHIRPS (Brazil):** Requires `earthengine-api` Python package for GEE extraction over Minas Gerais boundary (use FAO GAUL dataset). Fallback: direct NetCDF from `data.chc.ucsb.edu` (no approval needed). Strongest signal during flowering season: Sep–Nov.
 
@@ -147,6 +158,7 @@ Price position drives timing. Supply/climate signals amplify conviction when the
 | Package manager | uv (`pyproject.toml`) |
 | Python | 3.12+ |
 | Backend | FastAPI + Uvicorn |
+| Excel parsing | openpyxl (main dep) — required by `world_bank_commodity.py` to parse the WB Pink Sheet at runtime |
 | Frontend | React + Vite + Recharts (scaffold deferred) |
 | Database | Supabase (PostgreSQL) |
 | Hosting | Vercel (frontend + serverless) |
@@ -204,13 +216,24 @@ Signal output should be actionable in under 2 minutes. The product serves the Th
 
 ---
 
-## Phase 0 Validation Results (Baseline to Preserve)
+## Phase 0 Validation Results — Updated with Real Data
 
-- Price position alone: 2.2% cost improvement vs naive buying (2010–2025 backtest)
+**L1 (price position) — VALIDATED on real data (notebook 01 §1–8, 2010–2024):**
+- Contemporaneous r = **+0.852** (Phase 0 claimed +0.64 — same metric, confirmed)
+- Cost saving vs naive (full-history, in-sample): **+10.73%**
+- Cost saving — **walk-forward (no look-ahead): +3.71% avg, 12/12 years positive** ← cite this in product/investor comms
+- BUY zone (pos < 0.30) avg price: **135 USc/lb** vs AVOID zone (pos > 0.70): **205 USc/lb** — 52% cheaper
+- Forward predictive r peaks at **24m lag** (r = +0.20), not 12m — arabica momentum lasts ~12m before mean-reverting
+- All three validation gates PASS ✅
+- **Momentum baseline (above 3m MA) = −10.37%** — trend-following hurts vs naive; contrarian approach validated
+- **104w (2-year) window saves +15.01%** — outperforms 52w (+12.95%); consistent with 24m mean-reversion horizon (noted for composite formula tuning)
+
+**L2a–L5 — still on synthetic baseline (real backtest pending):**
 - Full 5-signal composite: **4.54% forward prescience** (vs 3.2% for L1 alone — 42% better)
 - Spike avoidance (2024 Arabica +110%): 200 kg/month roaster saved ~$3,000 in one quarter
+- Signal rank order (L1 > L2a > L2b > L3 > L5) must be confirmed on real data before product work
 
-The Phase 0 backtest was built on synthetic/calibrated data. **First code priority:** rebuild it on real data and verify signal rank order holds before building the product.
+**Nasdaq Data Link CHRIS access:** CHRIS futures database requires a paid subscription. Production `ice_coffee_c.py` targets `CHRIS/ICE_KC1`; backtests use Yahoo Finance `KC=F` (same instrument). Activate paid plan before deploying the production ingestion job.
 
 ---
 

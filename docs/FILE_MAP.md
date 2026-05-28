@@ -97,8 +97,9 @@ All models use `pydantic.BaseModel`. These are the objects that flow between eve
 
 | File | Source | Implement order | Status |
 |------|--------|----------------|--------|
-| `ice_coffee_c.py` | Nasdaq Data Link `CHRIS/ICE_KC1` daily close | **1st** — needs API key only | 🔲 Stub |
-| `noaa_enso.py` | NOAA CPC ONI fixed-width text (`oni.ascii.txt`) | **2nd** — free, no auth | 🔲 Stub |
+| `ice_coffee_c.py` | Nasdaq Data Link `CHRIS/ICE_KC1` daily close | **1st** — needs API key only | ✅ Done |
+| `world_bank_commodity.py` | World Bank Pink Sheet — Arabica + Robusta physical prices (free, no auth) | **new** | ✅ Done |
+| `noaa_enso.py` | NOAA CPC ONI fixed-width text (`oni.ascii.txt`) | **2nd** — free, no auth | ✅ Done |
 | `cot.py` | CFTC disaggregated COT report, annual CSVs | **3rd** — free, no auth | 🔲 Stub |
 | `usda_psd.py` | USDA PSD bulk CSV download | **4th** — free, no auth | 🔲 Stub |
 | `chirps.py` | CHIRPS via Google Earth Engine or direct NetCDF | **5th** — waiting on GEE approval | 🔲 Stub |
@@ -107,7 +108,7 @@ All models use `pydantic.BaseModel`. These are the objects that flow between eve
 
 | File | What it computes | Status |
 |------|-----------------|--------|
-| `price_features.py` | `price_position_52w` (0–1), `yoy_price_change`, `price_momentum_12m` (context only — not a buy signal) | 🔲 Stub |
+| `price_features.py` | `price_position_52w` (0–1), `yoy_price_change`, `price_momentum_12m` (context only — not a buy signal) | ✅ Done |
 | `supply_features.py` | `stu_risk_score` (STU % → 0–1 risk), `supply_regime` label | 🔲 Stub |
 | `climate_features.py` | `enso_lagged` (24m shift), `climate_risk_score` (weighted sub-signal combination) | 🔲 Stub |
 | `margin_features.py` | `roaster_margin`, `forward_buy_saving` — dollar-impact numbers for roasters | 🔲 Stub |
@@ -152,8 +153,9 @@ Empty — React + Vite scaffold deferred until data pipeline and signal are vali
 | Path | Purpose | Status |
 |------|---------|--------|
 | `coffee_backtests/README.md` | Pass/fail gates for each signal on real data. All notebooks must pass these before product work begins. | ✅ Done |
-| `coffee_backtests/01_ice_price_signal.ipynb` | L1: fetch real ICE KC data, validate price_position_52w correlation | 🔲 Not created |
-| `coffee_backtests/02_enso_signal.ipynb` | L2b: parse NOAA ONI, apply 24m lag, validate correlation | 🔲 Not created |
+| `coffee_backtests/01_ice_price_signal.ipynb` | L1: fetch real ICE KC data, validate price_position_52w correlation | ✅ Done (r=+0.852, saving=+10.73%, all gates PASS) |
+| `coffee_backtests/07_wb_physical_prices.ipynb` | WB Arabica & Robusta L1 gates + basis analysis vs KC=F | ✅ Done (Arabica r=+0.835, Robusta r=+0.748, all gates PASS) |
+| `coffee_backtests/02_enso_signal.ipynb` | L2b: NOAA ONI backtest; gate FAILS at 24m lag (r=−0.127); signal strongest at 0–7m lag; revised to current-state amplifier role | ✅ Done |
 | `coffee_backtests/03_cot_signal.ipynb` | L5: parse CFTC COT, compute COT index, validate correlation | 🔲 Not created |
 | `coffee_backtests/04_usda_supply_signal.ipynb` | L2a: parse USDA PSD CSV, compute STU, validate correlation | 🔲 Not created |
 | `coffee_backtests/05_chirps_signal.ipynb` | L3: extract Minas Gerais rainfall, validate correlation (needs GEE) | 🔲 Not created |
