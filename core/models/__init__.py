@@ -3,7 +3,7 @@ from .forecast import Forecast
 from .observation import FeatureObservation, MarketObservation
 from .recommendation import Recommendation
 from .risk_signal import RiskSignal
-from .scenario import Scenario
+from .scenario import ScenarioInput, ScenarioOutput
 from .source_run import SourceRun
 
 __all__ = [
@@ -13,6 +13,7 @@ __all__ = [
     "Forecast",
     "RiskSignal",
     "Recommendation",
-    "Scenario",
+    "ScenarioInput",
+    "ScenarioOutput",
     "SourceRun",
 ]
