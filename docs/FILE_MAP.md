@@ -90,7 +90,7 @@ All models use `pydantic.BaseModel`. These are the objects that flow between eve
 
 | File | What it does | Status |
 |------|-------------|--------|
-| `assets.py` | Declares tracked assets as constants: origins (`BRAZIL_ARABICA`, `COLOMBIA_ARABICA`, `ETHIOPIA_ARABICA`, `VIETNAM_ROBUSTA`), benchmarks (`ICE_ARABICA_BENCHMARK`, `WB_ARABICA_BENCHMARK`, `WB_ROBUSTA_BENCHMARK`), and signals (`ENSO_ONI`, `COT_KC`); collected in `ALL_ASSETS` | ✅ Done |
+| `assets.py` | Declares tracked assets as constants: origins (`BRAZIL_ARABICA`, `COLOMBIA_ARABICA`, `ETHIOPIA_ARABICA`, `VIETNAM_ROBUSTA`), benchmarks (`ICE_ARABICA_BENCHMARK`, `WB_ARABICA_BENCHMARK`, `WB_ROBUSTA_BENCHMARK`), and signals (`ENSO_ONI`, `COT_KC`, `USDA_STU`, `CHIRPS_MINAS`); collected in `ALL_ASSETS` | ✅ Done |
 | `regions.py` | Geographic bounding boxes for CHIRPS extraction: `MINAS_GERAIS`, `VIETNAM_CENTRAL_HIGHLANDS` | ✅ Done |
 
 ### `domains/coffee/sources/` — One file per data source. Each returns `list[MarketObservation]` or `list[FeatureObservation]`.
@@ -102,7 +102,7 @@ All models use `pydantic.BaseModel`. These are the objects that flow between eve
 | `noaa_enso.py` | NOAA CPC ONI fixed-width text (`oni.ascii.txt`) | **2nd** — free, no auth | ✅ Done |
 | `cot.py` | CFTC disaggregated COT report, annual ZIP/CSVs | **3rd** — free, no auth | ✅ Done |
 | `usda_psd.py` | USDA PSD bulk CSV — world stocks-to-use % (free, no auth) | **4th** — free, no auth | ✅ Done |
-| `chirps.py` | CHIRPS via Google Earth Engine or direct NetCDF | **5th** — waiting on GEE approval | 🔲 Stub |
+| `chirps.py` | CHIRPS via Google Earth Engine (Minas Gerais GAUL polygon); NetCDF fallback | **5th** | ✅ Done |
 
 ### `domains/coffee/features/` — Signal computation from raw DataFrames
 
@@ -158,7 +158,7 @@ Empty — React + Vite scaffold deferred until data pipeline and signal are vali
 | `coffee_backtests/02_enso_signal.ipynb` | L2b: NOAA ONI backtest; gate FAILS at 24m lag (r=−0.127); signal strongest at 0–7m lag; revised to current-state amplifier role | ✅ Done |
 | `coffee_backtests/03_cot_signal.ipynb` | L5: CFTC COT backtest; gate FAILS (contrarian r=−0.05 @ fwd 12m); contrarian thesis inverted — managed money trend-follows (r=+0.14 @ fwd 3–6m); recommend revising L5 role or dropping | ✅ Done |
 | `coffee_backtests/04_usda_supply_signal.ipynb` | L2a: USDA world stocks-to-use backtest; YoY-change gate FAILS (r=−0.04) but signal strong on price level (r=−0.40 monthly, −0.56 annual, −0.59 @ 23m lag); recommend redefining L2a gate to price level (cf. L1) | ✅ Done |
-| `coffee_backtests/05_chirps_signal.ipynb` | L3: extract Minas Gerais rainfall, validate correlation (needs GEE) | 🔲 Not created |
+| `coffee_backtests/05_chirps_signal.ipynb` | L3: CHIRPS Minas Gerais drought backtest; gate narrowly FAILS (r=+0.10 @ 14m) but right sign/lag/mechanism, annual flowering r=+0.40; keep as low-weight flowering amplifier | ✅ Done |
 | `coffee_backtests/06_composite_backtest.ipynb` | Full composite: all signals combined, measure forward prescience | 🔲 Not created |
 | `coffee_data_validation/` | Exploratory data quality checks as each new source is pulled | 🔲 Empty |
 

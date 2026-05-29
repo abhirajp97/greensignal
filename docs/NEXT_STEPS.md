@@ -26,7 +26,9 @@ The skeleton is built and the architecture is locked. The immediate work is impl
 - [x] **Implement `domains/coffee/sources/usda_psd.py`** (L2a) — bulk ZIP → world stocks-to-use %; corrected stub assumptions (commodity code is int `711100`; no World row → sum 94 countries; attr `125`=Domestic Consumption not `57`); `stu_risk_score` + `load_from_csv` helpers; 20 tests pass. Real data: world S/U 22% (2018) → 11.6% (2025)
 - [x] **Run `notebooks/coffee_backtests/04_usda_supply_signal.ipynb`** — YoY-change gate FAILS (r=−0.04) but signal is **strong on price level**: r=−0.40 monthly, −0.56 annual (n=15), −0.59 @ 23m lag. S/U is a slow annual stock var — YoY-change is the wrong lens
 - [ ] **Redefine the L2a gate** to use price-level correlation (and/or 12–24m lagged level), mirroring the L1 gate redefinition. On that basis L2a passes (|r|=0.40–0.59) and is the strongest fundamental after L1 — rank order L1 > L2a holds. Calibrate `stu_risk_score` bounds against the realized 11.6–23% range
-- [ ] **Apply for Google Earth Engine access** at `earthengine.google.com` (1–2 day approval) — then implement `chirps.py`, run notebook 05
+- [x] **Implement `domains/coffee/sources/chirps.py`** (L3) — GEE CHIRPS PENTAD over Minas Gerais GAUL polygon; monthly area-mean rainfall + `drought_risk_score`; NetCDF fallback; 20 tests. GEE project `western-plate-432020-t5`, auth via `EARTHENGINE_PROJECT` env
+- [x] **Run `notebooks/coffee_backtests/05_chirps_signal.ipynb`** — gate narrowly FAILS (r=+0.10 monthly @ 14m lag; drought_risk +0.11 vs +0.12). But right sign/lag/mechanism; annual flowering-dryness vs fwd 12m price r=+0.40 (n=15, p=0.14). Keep as low-weight flowering amplifier
+- [ ] **Run `notebooks/coffee_backtests/06_composite_backtest.ipynb`** — all 5 sources now implemented. Re-validate the composite on real data with the revised signal roles (L1 strong; L2a strong on level; L2b/L3/L5 weak amplifiers). Confirm/adjust the conditional formula and weights
 - [ ] **Run `notebooks/coffee_backtests/06_composite_backtest.ipynb`** — confirm all five gates pass and signal rank order holds
 
 ---
@@ -35,7 +37,7 @@ The skeleton is built and the architecture is locked. The immediate work is impl
 
 | Item | Blocked on |
 |------|-----------|
-| `chirps.py` implementation | GEE approval (apply now, it's free) |
+| ~~`chirps.py` implementation~~ | ✅ done — GEE access granted, project `western-plate-432020-t5` |
 | Supabase storage wiring | Not needed until signals are validated |
 | FastAPI routes (coffee) | Not needed until signals are validated |
 
@@ -94,4 +96,4 @@ See `notebooks/coffee_backtests/README.md` for the full table. Summary:
 | Momentum baseline is −10.37% vs naive | Trend-following hurts for coffee procurement; contrarian approach validated decisively |
 | 104w window (+15.01%) outperforms 52w (+12.95%) | Noted for future composite tuning; not changing current L1 signal until all 5 signals validated |
 
-*Last updated: 2026-05-28 — implemented `cot.py` (L5) + notebook 03 (FAIL, contrarian inverted); `usda_psd.py` (L2a) + notebook 04 (YoY gate FAILS but signal strong on price level, r=−0.40/−0.56/−0.59). 90 tests pass, `make verify` green. All work committed + pushed to main. Next: redefine L2a gate (price level), decide L5 fate, then GEE/CHIRPS (L3) + composite (notebook 06).*
+*Last updated: 2026-05-28 — implemented `chirps.py` (L3) via GEE + notebook 05 (gate narrowly FAILS r=+0.10 @ 14m, but right sign/lag/mechanism, annual flowering r=+0.40). **All 5 sources now implemented and backtested on real data.** 110 tests pass, `make verify` green. Next: composite backtest (notebook 06) with revised signal roles — L1 strong, L2a strong-on-level, L2b/L3/L5 weak amplifiers; then redefine L2a gate, decide L5 fate.*

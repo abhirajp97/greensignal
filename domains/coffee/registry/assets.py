@@ -140,6 +140,26 @@ USDA_STU = Asset(
     },
 )
 
+CHIRPS_MINAS = Asset(
+    asset_id="climate:chirps:minas_gerais",
+    domain="coffee",
+    asset_type="climate_signal",
+    name="CHIRPS Rainfall — Minas Gerais (Brazil Arabica)",
+    unit="mm",
+    metadata={
+        "source": "UCSB CHIRPS via Google Earth Engine",
+        "gee_collection": "UCSB-CHG/CHIRPS/PENTAD",
+        "region": "FAO GAUL level-1 ADM1_NAME='Minas Gerais'",
+        "description": (
+            "Monthly area-mean precipitation (mm) over Minas Gerais, Brazil's "
+            "primary Arabica state. Below-normal rainfall during the Sep-Nov "
+            "flowering season threatens the next crop and is bullish for price. "
+            "Returns raw monthly rainfall; anomaly and flowering-season risk are "
+            "derived downstream (see drought_risk_score)."
+        ),
+    },
+)
+
 ALL_ASSETS: list[Asset] = [
     BRAZIL_ARABICA,
     COLOMBIA_ARABICA,
@@ -151,4 +171,5 @@ ALL_ASSETS: list[Asset] = [
     ENSO_ONI,
     COT_KC,
     USDA_STU,
+    CHIRPS_MINAS,
 ]

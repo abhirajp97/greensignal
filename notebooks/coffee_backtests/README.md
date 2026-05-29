@@ -21,7 +21,7 @@ rank order should be re-examined before proceeding.
 | L1 — price position 52w | Gate 1: contemp r ≥ +0.50 / Gate 2: cost saving ≥ 3% / Gate 3: zone monotone | r=+0.64 / saving=2.2% | see above | ✅ r=+0.852 / saving=+10.73% / monotone |
 | L2a — stocks-to-use % | Pearson r vs YoY price change | −0.35 | ≤ −0.25 | ⚠️ YoY metric FAILS (r=−0.04) but signal strong on **price level**: r=−0.40 monthly / −0.56 annual / −0.59 @ 23m lag. YoY-change is wrong lens for an annual stock var — recommend redefining gate to price level (cf. L1) |
 | L2b — ENSO ONI 24m lag | Pearson r vs YoY price change | −0.30 | ≤ −0.20 | ⬜ pending |
-| L3 — Brazil CHIRPS drought | Pearson r vs YoY price change | +0.21 | ≥ +0.12 | ⬜ pending |
+| L3 — Brazil CHIRPS drought | Pearson r vs YoY price change | +0.21 | ≥ +0.12 | ⚠️ narrowly FAILS: r=+0.10 monthly @ 14m lag (drought_risk +0.11); but right sign/lag/mechanism, annual flowering-dryness vs fwd 12m price r=+0.40 (n=15, p=0.14). Keep as low-weight flowering amplifier |
 | L5 — COT contrarian | Pearson r vs YoY price change | +0.15 | ≥ +0.08 | ❌ r=−0.05 @ fwd 12m (FAIL); contrarian thesis inverted — specs trend-follow, r(index)=+0.14 @ fwd 3–6m |
 | Full composite | Forward 3–6m prescience after BUY | 4.54% | ≥ 3.50% | ⬜ pending |
 | Spike avoidance | Cost saving, 200 kg/mo roaster, 2024 rally | ~$3,000 | Confirm directionally | ⬜ pending |

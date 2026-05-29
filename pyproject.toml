@@ -12,6 +12,7 @@ dependencies = [
     "openpyxl>=3.1",
     "supabase>=2.4",
     "python-dotenv>=1.0",
+    "earthengine-api>=1.0",
 ]
 
 [dependency-groups]

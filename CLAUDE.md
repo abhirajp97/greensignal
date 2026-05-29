@@ -121,7 +121,7 @@ Price position drives timing. Supply/climate signals amplify conviction when the
 | L1 | 52-week price position | ICE KC=F / Yahoo Finance `KC=F` | +0.64 (contemp) | **+0.852 (contemp); +0.201 @ 24m fwd** ✅ |
 | L2a | Stocks-to-use % | USDA PSD (`apps.fas.usda.gov/psdonline`) | −0.35 | **YoY-change metric −0.04 (FAIL); but price level −0.40, annual −0.56, −0.59 @ 23m** — strong fundamental; YoY is wrong lens for an annual stock var, redefine gate to price level (cf. L1) |
 | L2b | ENSO ONI, 24m lag | NOAA CPC (`cpc.ncep.noaa.gov/data/indices/oni.ascii.txt`) | −0.30 | **−0.127 @ 24m lag (FAIL); −0.338 contemporaneous** — signal peaks at 0–7m; revised to current-state amplifier |
-| L3 | Brazil CHIRPS rainfall (Minas Gerais) | Google Earth Engine or `data.chc.ucsb.edu` | +0.21 | pending |
+| L3 | Brazil CHIRPS rainfall (Minas Gerais) | Google Earth Engine or `data.chc.ucsb.edu` | +0.21 | **+0.10 monthly @ 14m lag (narrow FAIL); drought_risk +0.11; annual flowering-dryness vs fwd 12m price +0.40 (n=15, p=0.14)** — right sign/lag/mechanism, underpowered; keep as low-weight flowering amplifier |
 | L5 | COT speculative net (contrarian) | CFTC disaggregated report (`cftc.gov`) | +0.15 | **−0.05 @ fwd 12m (FAIL)** — contrarian thesis inverted; managed money trend-follows, r(index)=+0.14 @ fwd 3–6m; revise to momentum-confirmation role or drop |
 
 **L1 r clarification:** The Phase 0 r = +0.64 was the *contemporaneous* `r(price_pos_52w, trailing_12m_yoy)` — not a forward-predictive r. Real data confirms it at +0.852. Forward predictive r peaks at 24m (r = +0.20, p < 0.01) — arabica trends for ~12m then mean-reverts over 24m.
@@ -145,7 +145,7 @@ Price position drives timing. Supply/climate signals amplify conviction when the
 
 **World Bank Pink Sheet (physical coffee prices):** Free, no auth. Source file `world_bank_commodity.py`. Two-step fetch: (1) GET `https://www.worldbank.org/en/research/commodity-markets` to scrape the current Excel download URL (URL embeds a monthly hash — cannot be hardcoded); (2) download and parse `CMO-Historical-Data-Monthly.xlsx`, sheet `Monthly Prices`. Series `COFFEE_ARABIC` (Other Mild Arabicas — proxy for ICO Arabica indicator; Colombia, Kenya, Tanzania washed coffees) and `COFFEE_ROBUS` (Robusta — proxy for ICO Robusta indicator). Source units are USD/kg; always convert to USc/lb (× 100/2.20462 = × 45.3592) for consistency with KC=F. Column header row is index 6 (machine codes) — locate columns dynamically, never hardcode positions. Date format: `"YYYYMmm"` (e.g. `"2026M04"`) → last day of that month. NaN values = data not yet published for that month — skip silently (not a parse error). **pandas quirk:** when reading the code-row with `df.iloc[6].astype(str)`, columns whose dtype is `float64` (because rows above them had NaN) keep `np.float64(nan)` as actual floats even after `astype(str)`; always do `df.iloc[row].fillna("").astype(str)` before string comparisons. Assets: `WB_ARABICA_BENCHMARK` (`coffee:benchmark:wb:arabica`) and `WB_ROBUSTA_BENCHMARK` (`coffee:benchmark:wb:robusta`) in `domains/coffee/registry/assets.py`.
 
-**CHIRPS (Brazil):** Requires `earthengine-api` Python package for GEE extraction over Minas Gerais boundary (use FAO GAUL dataset). Fallback: direct NetCDF from `data.chc.ucsb.edu` (no approval needed). Strongest signal during flowering season: Sep–Nov.
+**CHIRPS (Brazil):** Source file `chirps.py`. Uses `earthengine-api` (now a main dep). GEE auth: interactive `earthengine authenticate` (cached at `~/.config/earthengine/`) + Cloud project in env **`EARTHENGINE_PROJECT`** (ours: `western-plate-432020-t5`) — `ee.Initialize(project=...)` requires a project since 2023. Collection `UCSB-CHG/CHIRPS/PENTAD` (select `precipitation`), clipped to the **FAO GAUL level-1 polygon** `ADM1_NAME == "Minas Gerais"` (true state shape, better than the rectangular bbox in `regions.py`), `scale=5566` m. All ee interaction is isolated in `_query_monthly_precip` (one server-side `map` + a single `getInfo()`); aggregate pentads to monthly **sums**, then `reduceRegion` mean over the polygon. `fetch(start, end)` returns RAW monthly area-mean rainfall (mm) anchored to month-end (asset `climate:chirps:minas_gerais`, `feature_name="precip_mm"`) — anomaly/risk derived downstream, like ENSO. `drought_risk_score(anomaly_mm, is_flowering_season)` rises as rainfall falls below normal (full risk at −60 mm; off-season halved); `is_flowering_month` = Sep–Nov. Climatology check confirms correct extraction: wet Nov–Mar (~200 mm), dry Jun–Aug (~10 mm). Fallback `load_from_netcdf(path)` reads a direct NetCDF from `data.chc.ucsb.edu` (no GEE), lazy-imports `xarray` (not a hard dep) and raises a clear ImportError if absent.
 
 **CFTC COT:** Source file `cot.py`. Use the **disaggregated** report (not legacy) for the "Managed Money" breakdown. Annual futures-only ZIPs at `https://www.cftc.gov/files/dea/history/fut_disagg_txt_{year}.zip`, each containing one CSV (`f_year.txt` — locate by `.txt` suffix, do not hardcode the member name). No auth. Columns: `Market_and_Exchange_Names` (filter rows containing `COFFEE C - ICE`), the weekly Tuesday report date (**column name varies by vintage** — pre-2013 it is `Report_Date_as_MM_DD_YYYY`, 2013+ it is `Report_Date_as_YYYY-MM-DD`; *both carry ISO `YYYY-MM-DD` values* despite the older header, so match the common `Report_Date_as_` prefix and let `pd.to_datetime` parse — matching only `Report_Date_as_YYYY` silently drops 2010–2012), `M_Money_Positions_Long_All`, `M_Money_Positions_Short_All`. Read with `low_memory=False` (100+ columns, mixed dtypes in unused trader-count fields). The disaggregated report does not exist before 2010 — `fut_disagg_txt_2008.zip` / `2009` return HTTP 404 (handled as PARTIAL). Net managed-money = long − short. `fetch(start, end)` downloads one ZIP per calendar year in range and returns raw weekly `FeatureObservation`s (`feature_name="managed_money_net"`, asset `coffee:cot:kc`, type `positioning_signal`); a single year's HTTP/archive failure yields a PARTIAL run (not FAILED) as long as another year returns data. **Month-end alignment is a downstream/backtest concern, not the source's** — the source stays faithful to the native weekly cadence (mirrors ENSO returning raw ONI before lagging). `_cot_index(series, window=156)` returns a **0–100** rolling index `100 × (val − min) / (max − min)`; a flat trailing window (max == min) maps to 50 (neutral), not NaN. `cot_contrarian_signal(idx)`: +1 if idx < 25 (specs crowded short → buy), −1 if idx > 75 (crowded long → caution), else 0.
 
@@ -159,6 +159,7 @@ Price position drives timing. Supply/climate signals amplify conviction when the
 | Python | 3.12+ |
 | Backend | FastAPI + Uvicorn |
 | Excel parsing | openpyxl (main dep) — required by `world_bank_commodity.py` to parse the WB Pink Sheet at runtime |
+| Geospatial / climate | earthengine-api (main dep) — required by `chirps.py` for GEE CHIRPS extraction; auth via `EARTHENGINE_PROJECT` env |
 | Frontend | React + Vite + Recharts (scaffold deferred) |
 | Database | Supabase (PostgreSQL) |
 | Hosting | Vercel (frontend + serverless) |
@@ -237,10 +238,14 @@ Signal output should be actionable in under 2 minutes. The product serves the Th
 - L2b: −0.127 @ 24m lag (gate ≤ −0.20); strongest contemporaneously (−0.338); revised to current-state amplifier
 - L5: −0.05 @ fwd 12m (gate ≥ +0.08); contrarian thesis inverted — managed money trend-follows in coffee, r(COT index, fwd 3–6m) = +0.14; revise to a low-weight momentum-confirmation role or drop. Revisit `cot_contrarian_signal` sign/threshold before composite wiring.
 
-**L3 (CHIRPS) — still on synthetic baseline (real backtest pending, blocked on GEE):**
-- Full 5-signal composite: **4.54% forward prescience** (vs 3.2% for L1 alone — 42% better) — synthetic; must be re-run now that L2b/L5 failed and L2a needs a redefined gate
+**L3 (CHIRPS) — backtested on real data (GEE); narrow FAIL, mechanistically sound (notebook 05):**
+- Best monthly r(dryness, fwd YoY) = +0.10 @ 14m lag (gate ≥ +0.12); drought_risk form +0.11. Annual flowering-season dryness vs next-12m price = +0.40 (n=15, p=0.14) — right sign, right ~14m lag (flowering→harvest→price), underpowered.
+- Keep as a **low-weight flowering-season amplifier** via `drought_risk_score`; too weak/underpowered to time on alone. Consider a flowering-window-only feature as more crop years accrue.
+
+**All 5 sources now implemented and backtested on real data.** Composite (notebook 06) is the remaining validation:
+- Full 5-signal composite: **4.54% forward prescience** (Phase 0 synthetic) — must be re-run now that only L1 (and L2a on price level) clear their gates; L2b/L3/L5 are weak amplifiers, not standalone signals. Reweighting likely needed.
 - Spike avoidance (2024 Arabica +110%): 200 kg/month roaster saved ~$3,000 in one quarter
-- Signal rank order (L1 > L2a > L2b > L3 > L5) must be confirmed on real data before product work
+- Real-data rank order is broadly L1 > L2a > {L2b, L3, L5}; confirm in the composite before product work
 
 **Nasdaq Data Link CHRIS access:** CHRIS futures database requires a paid subscription. Production `ice_coffee_c.py` targets `CHRIS/ICE_KC1`; backtests use Yahoo Finance `KC=F` (same instrument). Activate paid plan before deploying the production ingestion job.
 
@@ -248,9 +253,9 @@ Signal output should be actionable in under 2 minutes. The product serves the Th
 
 ## Build Sequence
 
-1. Real data pipelines for L1 (ICE KC), L2b (ENSO), L5 (COT) — no GEE needed
-2. Add USDA PSD (L2a) from bulk CSV
-3. Add CHIRPS (L3) after GEE approval
-4. Rebuild Phase 0 backtest on real data — confirm signal rank order
+1. ✅ Real data pipelines for L1 (ICE KC), L2b (ENSO), L5 (COT) — no GEE needed
+2. ✅ Add USDA PSD (L2a) from bulk CSV
+3. ✅ Add CHIRPS (L3) via GEE (project `western-plate-432020-t5`)
+4. ← **NEXT:** Rebuild Phase 0 composite backtest (notebook 06) on real data — confirm rank order and reweight (only L1 + L2a-on-level clear their gates; L2b/L3/L5 are weak amplifiers)
 5. FastAPI layer with core route structure
 6. React frontend: signal cards, price chart, margin calculator

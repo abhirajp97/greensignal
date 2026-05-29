@@ -9,9 +9,27 @@ Versions are dated. Each entry covers what changed, why it matters, and who did 
 ## [Unreleased]
 
 Planned but not yet merged to `main`:
-- Redefine the L2a gate to price-level correlation (cf. L1) after the YoY-metric mismatch
-- Decide L5 composite role (momentum-confirmation vs drop) after the notebook 03 FAIL
-- Apply for GEE access → implement `chirps.py` (L3); then composite notebook 06
+- Composite backtest (notebook 06) on real data — reweight now that only L1 (+ L2a on level) clear their gates
+- Redefine the L2a gate to price-level correlation (cf. L1)
+- Decide L5 composite role (momentum-confirmation vs drop)
+
+---
+
+## [0.14.0] — 2026-05-28
+
+### Added
+- `domains/coffee/sources/chirps.py` — CHIRPS rainfall source (L3) via Google Earth Engine; `fetch(start, end)` returns monthly area-mean precipitation over the Minas Gerais FAO GAUL polygon (`UCSB-CHG/CHIRPS/PENTAD`, one server-side aggregation + single `getInfo()`); adds `drought_risk_score`, `is_flowering_month`, and a `load_from_netcdf` no-GEE fallback (lazy `xarray`). 20 tests, all passing (GEE mocked at the `_query_monthly_precip` boundary)
+- `tests/domains/coffee/test_chirps.py` — 20 tests: `drought_risk_score` (deficit scaling / off-season halving / clamping), flowering-month flags, `_month_end`, fetch success (month-end anchoring, None-month skip, metadata, date filter, sort), EEException → FAILED run, NetCDF import guard
+- `notebooks/coffee_backtests/05_chirps_signal.ipynb` — L3 backtest (real GEE data, 216 months 2008–2025): climatology check, anomaly + drought signal, monthly lag sweep, annual flowering-season test, gate, rolling stability, interpretation cell
+- `domains/coffee/registry/assets.py` — added `CHIRPS_MINAS` asset (`climate:chirps:minas_gerais`, type `climate_signal`)
+- `earthengine-api>=1.0` added as a main dependency (runtime dep of `chirps.py`)
+
+### Key findings (notebook 05 — L3, real GEE data 2010–2024)
+- **Gate narrowly FAILS** — best monthly r(dryness, fwd YoY change) = **+0.10 @ 14m lag** (gate ≥ +0.12); `drought_risk_score` form +0.11
+- **But mechanistically sound** — right sign, contemporaneous r ≈ 0, peak at ~14m matches the flowering (Sep–Nov) → harvest → price chain. Annual flowering-season dryness vs next-12m price = **+0.40 (n=15, p=0.14)** — right magnitude, underpowered with 15 crop years
+- **Extraction validated** — climatology shows correct Minas Gerais seasonality (wet Nov–Mar ~200 mm, dry Jun–Aug ~10 mm)
+- **Composite role:** keep as a **low-weight flowering-season amplifier** via `drought_risk_score`; too weak/underpowered to time on alone. Rolling 3yr r positive in 62% of windows
+- **All five data sources are now implemented and backtested on real data** — composite (notebook 06) is the remaining validation step
 
 ---
 
