@@ -9,9 +9,73 @@ Versions are dated. Each entry covers what changed, why it matters, and who did 
 ## [Unreleased]
 
 Planned but not yet merged to `main`:
-- Implement `noaa_enso.py` — NOAA ONI signal with 24m lag
-- Implement `cot.py` — CFTC COT disaggregated report
-- Backtest notebooks 02–06 on real data
+- Redefine the L2a gate to price-level correlation (cf. L1) after the YoY-metric mismatch
+- Decide L5 composite role (momentum-confirmation vs drop) after the notebook 03 FAIL
+- Apply for GEE access → implement `chirps.py` (L3); then composite notebook 06
+
+---
+
+## [0.13.0] — 2026-05-28
+
+### Added
+- `notebooks/coffee_backtests/04_usda_supply_signal.ipynb` — L2a USDA stocks-to-use backtest (real data, 26 marketing years; 180 monthly points 2010–2024): forward-fill annual S/U to monthly, correlation vs price level + YoY change, lag sweep, annual-level robustness check, rolling stability, interpretation cell
+
+### Key findings (notebook 04 — L2a, real data 2010–2024)
+- **Literal YoY-change gate FAILS** — r(S/U, trailing YoY price change) = **−0.04** (gate ≤ −0.25)
+- **But the supply signal is strong on price level** — r(S/U, price level) = **−0.40** (p≈1.7e-8); annual-level r = **−0.56** (n=15, p=0.03); best lagged r = **−0.59 @ 23m**. The 23m peak ≈ two crop cycles of supply tightness feeding into price
+- **Metric mismatch, not a weak signal** — S/U is a slow annual step function; it tracks the low-frequency price *level* tightly but not high-frequency YoY *momentum*. The Phase 0 −0.35 (YoY) baseline was a synthetic artifact
+- **Recommendation:** redefine the L2a gate to price-level correlation, mirroring the L1 gate redefinition. On that basis L2a passes (|r|=0.40–0.59) and is the strongest fundamental after price — rank order L1 > L2a > L2b > L3 > L5 holds
+- World buffer at **11.6% (MY2025)**, tightest in series → `stu_risk_score` ≈ 1.0, a strong current BUY-side amplifier
+
+---
+
+## [0.12.0] — 2026-05-28
+
+### Added
+- `domains/coffee/sources/usda_psd.py` — USDA PSD world stocks-to-use source (L2a); `fetch(start, end)` downloads the coffee bulk ZIP, aggregates ending stocks / domestic consumption across all 94 reporting countries per marketing year, returns world stocks-to-use % as `FeatureObservation`; adds `stu_risk_score` (0–1 supply risk) and keeps `load_from_csv` (offline vintage snapshots) + `stocks_to_use`; 20 tests, all passing
+- `tests/domains/coffee/test_usda_psd.py` — 20 tests: `stocks_to_use`, `stu_risk_score` (clamping/midpoint), world aggregation across countries, attribute/commodity filtering, incomplete-year skip, date filter, dynamic CSV member, `load_from_csv`, HTTP/request/bad-zip/missing-attribute failures
+- `domains/coffee/registry/assets.py` — added `USDA_STU` asset (`coffee:supply:world_stu`, type `supply_signal`)
+
+### Fixed (stub assumptions corrected against the live file)
+- `Commodity_Code` is the **integer `711100`**, not the string `"0711100"`
+- **No World aggregate row exists** — PSD lists 94 individual countries; the world total is summed across countries per marketing year (the stub's `country 0000 = World` does not exist in the file)
+- **Attribute `125` = Domestic Consumption**; the stub's `57` is *Imports* — using it would have computed stocks-to-imports
+
+### Key data point
+- World coffee stocks-to-use has fallen from **~22% (MY2018) to 11.6% (MY2025)** — the tightest buffer in the series, on-thesis for L2a (low buffer → price pressure)
+
+---
+
+## [0.11.0] — 2026-05-28
+
+### Added
+- `notebooks/coffee_backtests/03_cot_signal.ipynb` — L5 COT backtest on real data (CFTC disaggregated, 835 weekly obs 2010–2025); forward-horizon correlation sweep, gate validation, 3yr rolling stability, interpretation cell
+
+### Fixed
+- `domains/coffee/sources/cot.py` — date-column detection now matches the `Report_Date_as_` prefix (was `Report_Date_as_YYYY`). Pre-2013 vintages name the column `Report_Date_as_MM_DD_YYYY` (carrying ISO values), so 2010–2012 were being silently dropped; data now starts 2010 as intended. Added `low_memory=False` to the CSV read to suppress mixed-dtype warnings on unused trader-count columns. New regression test `test_pre_2013_date_column_name` (21 tests total)
+
+### Key findings (notebook 03 — COT L5, real data 2010–2024, n=180 months)
+- **Gate L5 FAILS** — r(contrarian signal, fwd 12m change) = **−0.05** (required ≥ +0.08); negative at every horizon ≤ 18m
+- **Contrarian thesis is inverted** — managed money *trend-follows* in coffee: r(COT index, fwd 3–6m return) = **+0.14** (specs crowded long → prices keep rising short-term), peaking at 6m (p ≈ 0.05). Consistent with notebook 01's ~12m Arabica momentum
+- **Unstable** — 3yr rolling r spans −0.64 to +0.86; positive in only 68% of windows
+- **Composite implication** (parallels ENSO/L2b): do not use COT as a standalone contrarian timing signal — either flip to a low-weight 3–6m momentum-confirmation role or drop L5. Revisit the sign/threshold of `cot_contrarian_signal` before wiring into `signal_generator`
+- Signal rank order L1 > L2a > L2b > L3 > L5 holds: L5 is the weakest, now failing its gate
+
+---
+
+## [0.10.0] — 2026-05-28
+
+### Added
+- `domains/coffee/sources/cot.py` — CFTC disaggregated Commitments of Traders source (L5); downloads annual `fut_disagg_txt_{year}.zip` files, filters to `COFFEE C - ICE`, returns weekly net managed-money positions (long − short) as `FeatureObservation`; 20 tests, all passing
+- `tests/domains/coffee/test_cot.py` — 20 tests: `_cot_index` (min/max/midpoint/flat-window/range), `cot_contrarian_signal` boundaries, success path (market filter, net calc, sorting, date filter, dynamic ZIP member), multi-year PARTIAL on a failing year, PARTIAL on malformed rows, FAILED on HTTP/request/bad-zip errors
+- `domains/coffee/registry/assets.py` — added `COT_KC` asset (`coffee:cot:kc`, type `positioning_signal`)
+
+### Key decisions
+- **Disaggregated (not legacy) report** — needed for the "Managed Money" speculative breakdown; net = `M_Money_Positions_Long_All − M_Money_Positions_Short_All`
+- **Source returns raw weekly Tuesday positions** — month-end alignment for the monthly backtest is a downstream concern (mirrors ENSO returning raw ONI before lagging), keeping the source faithful to the native weekly cadence
+- **`_cot_index` returns 0–100** — to match the 25/75 thresholds in `cot_contrarian_signal`; flat trailing window (max == min) maps to 50 (neutral) rather than NaN
+- **Per-year download is fault-tolerant** — one year's HTTP/archive failure yields a PARTIAL run as long as another year returns data; only a fully empty result is FAILED
+- **ZIP member located dynamically** — annual file is `f_year.txt`, but matched by `.txt` suffix rather than hardcoded name
 
 ---
 

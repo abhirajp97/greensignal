@@ -20,9 +20,12 @@ The skeleton is built and the architecture is locked. The immediate work is impl
 - [x] **Implement `domains/coffee/sources/world_bank_commodity.py`** — World Bank Pink Sheet; Arabica + Robusta physical prices (free, no auth); two-step fetch (scrape page → download Excel); 15 tests pass
 - [x] **Implement `domains/coffee/sources/noaa_enso.py`** — 26 tests passing; NDJ year-boundary handled; -99.9 sentinel skipped
 - [x] **Run `notebooks/coffee_backtests/02_enso_signal.ipynb`** — gate FAILS at 24m lag (r=−0.127); signal strongest contemporaneously (r=−0.338); ENSO revised to current-state amplifier role in composite
-- [ ] **Implement `domains/coffee/sources/cot.py`** — download CFTC disaggregated annual CSVs, filter to `COFFEE C - ICE FUTURES U.S.`, compute COT index
-- [ ] **Run `notebooks/coffee_backtests/03_cot_signal.ipynb`** — validate r ≥ +0.08
-- [ ] **Download USDA PSD bulk CSV** — implement `usda_psd.py`, run notebook 04
+- [x] **Implement `domains/coffee/sources/cot.py`** — CFTC disaggregated annual ZIPs; filters to `COFFEE C - ICE`; returns weekly net managed-money positions; `_cot_index` (0-100 rolling) + `cot_contrarian_signal` helpers; 20 tests pass
+- [x] **Run `notebooks/coffee_backtests/03_cot_signal.ipynb`** — gate FAILS: contrarian r=−0.05 @ fwd 12m (need ≥ +0.08). Contrarian thesis is *inverted* on real data — managed money trend-follows: r(COT index, fwd 3–6m)=+0.14. Also fixed `cot.py`: pre-2013 vintages name the date column `Report_Date_as_MM_DD_YYYY` (was silently dropping 2010–2012); broadened prefix match + regression test
+- [ ] **Decide L5 fate** — flip to a 3–6m momentum-confirmation role (use +COT index, low weight) or drop L5 from the composite. Revisit sign/threshold of `cot_contrarian_signal` before wiring into `signal_generator`
+- [x] **Implement `domains/coffee/sources/usda_psd.py`** (L2a) — bulk ZIP → world stocks-to-use %; corrected stub assumptions (commodity code is int `711100`; no World row → sum 94 countries; attr `125`=Domestic Consumption not `57`); `stu_risk_score` + `load_from_csv` helpers; 20 tests pass. Real data: world S/U 22% (2018) → 11.6% (2025)
+- [x] **Run `notebooks/coffee_backtests/04_usda_supply_signal.ipynb`** — YoY-change gate FAILS (r=−0.04) but signal is **strong on price level**: r=−0.40 monthly, −0.56 annual (n=15), −0.59 @ 23m lag. S/U is a slow annual stock var — YoY-change is the wrong lens
+- [ ] **Redefine the L2a gate** to use price-level correlation (and/or 12–24m lagged level), mirroring the L1 gate redefinition. On that basis L2a passes (|r|=0.40–0.59) and is the strongest fundamental after L1 — rank order L1 > L2a holds. Calibrate `stu_risk_score` bounds against the realized 11.6–23% range
 - [ ] **Apply for Google Earth Engine access** at `earthengine.google.com` (1–2 day approval) — then implement `chirps.py`, run notebook 05
 - [ ] **Run `notebooks/coffee_backtests/06_composite_backtest.ipynb`** — confirm all five gates pass and signal rank order holds
 
@@ -91,4 +94,4 @@ See `notebooks/coffee_backtests/README.md` for the full table. Summary:
 | Momentum baseline is −10.37% vs naive | Trend-following hurts for coffee procurement; contrarian approach validated decisively |
 | 104w window (+15.01%) outperforms 52w (+12.95%) | Noted for future composite tuning; not changing current L1 signal until all 5 signals validated |
 
-*Last updated: 2026-05-21 — 01_ice_price_signal.ipynb extended with §7 walk-forward and §8 signal variants; all gates still PASS*
+*Last updated: 2026-05-28 — implemented `cot.py` (L5) + notebook 03 (FAIL, contrarian inverted); `usda_psd.py` (L2a) + notebook 04 (YoY gate FAILS but signal strong on price level, r=−0.40/−0.56/−0.59). 90 tests pass, `make verify` green. All work committed + pushed to main. Next: redefine L2a gate (price level), decide L5 fate, then GEE/CHIRPS (L3) + composite (notebook 06).*

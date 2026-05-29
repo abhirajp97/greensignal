@@ -101,6 +101,45 @@ ENSO_ONI = Asset(
     },
 )
 
+COT_KC = Asset(
+    asset_id="coffee:cot:kc",
+    domain="coffee",
+    asset_type="positioning_signal",
+    name="CFTC COT Managed Money Net — ICE Coffee C",
+    unit="contracts",
+    metadata={
+        "source": "CFTC Disaggregated Commitments of Traders (futures-only)",
+        "url": "https://www.cftc.gov/files/dea/history",
+        "market": "COFFEE C - ICE FUTURES U.S.",
+        "description": (
+            "Weekly (Tuesday) net managed-money position (long - short) in ICE "
+            "Coffee C futures, from the CFTC disaggregated report. Used as a "
+            "contrarian signal: extreme spec positioning often precedes reversals. "
+            "Convert to a 0-100 COT index over a trailing window before scoring."
+        ),
+    },
+)
+
+USDA_STU = Asset(
+    asset_id="coffee:supply:world_stu",
+    domain="coffee",
+    asset_type="supply_signal",
+    name="USDA PSD World Coffee Stocks-to-Use %",
+    unit="percent",
+    metadata={
+        "source": "USDA Foreign Agricultural Service — PSD Online (bulk CSV)",
+        "url": "https://apps.fas.usda.gov/psdonline/downloads/psd_coffee_csv.zip",
+        "commodity_code": 711100,
+        "description": (
+            "World coffee ending stocks as a percent of domestic consumption, "
+            "aggregated across all reporting countries per marketing year "
+            "(no World row in PSD — summed from Attribute 176 Ending Stocks and "
+            "125 Domestic Consumption). A low buffer (tight S/U) historically "
+            "precedes higher prices. Annual; values are retroactively revised."
+        ),
+    },
+)
+
 ALL_ASSETS: list[Asset] = [
     BRAZIL_ARABICA,
     COLOMBIA_ARABICA,
@@ -110,4 +149,6 @@ ALL_ASSETS: list[Asset] = [
     WB_ARABICA_BENCHMARK,
     WB_ROBUSTA_BENCHMARK,
     ENSO_ONI,
+    COT_KC,
+    USDA_STU,
 ]

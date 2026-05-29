@@ -119,10 +119,10 @@ Price position drives timing. Supply/climate signals amplify conviction when the
 | Layer | Signal | Source | Phase 0 r | Real-data r |
 |-------|--------|--------|-----------|-------------|
 | L1 | 52-week price position | ICE KC=F / Yahoo Finance `KC=F` | +0.64 (contemp) | **+0.852 (contemp); +0.201 @ 24m fwd** ✅ |
-| L2a | Stocks-to-use % | USDA PSD (`apps.fas.usda.gov/psdonline`) | −0.35 | pending |
+| L2a | Stocks-to-use % | USDA PSD (`apps.fas.usda.gov/psdonline`) | −0.35 | **YoY-change metric −0.04 (FAIL); but price level −0.40, annual −0.56, −0.59 @ 23m** — strong fundamental; YoY is wrong lens for an annual stock var, redefine gate to price level (cf. L1) |
 | L2b | ENSO ONI, 24m lag | NOAA CPC (`cpc.ncep.noaa.gov/data/indices/oni.ascii.txt`) | −0.30 | **−0.127 @ 24m lag (FAIL); −0.338 contemporaneous** — signal peaks at 0–7m; revised to current-state amplifier |
 | L3 | Brazil CHIRPS rainfall (Minas Gerais) | Google Earth Engine or `data.chc.ucsb.edu` | +0.21 | pending |
-| L5 | COT speculative net (contrarian) | CFTC disaggregated report (`cftc.gov`) | +0.15 | pending |
+| L5 | COT speculative net (contrarian) | CFTC disaggregated report (`cftc.gov`) | +0.15 | **−0.05 @ fwd 12m (FAIL)** — contrarian thesis inverted; managed money trend-follows, r(index)=+0.14 @ fwd 3–6m; revise to momentum-confirmation role or drop |
 
 **L1 r clarification:** The Phase 0 r = +0.64 was the *contemporaneous* `r(price_pos_52w, trailing_12m_yoy)` — not a forward-predictive r. Real data confirms it at +0.852. Forward predictive r peaks at 24m (r = +0.20, p < 0.01) — arabica trends for ~12m then mean-reverts over 24m.
 
@@ -134,7 +134,7 @@ Price position drives timing. Supply/climate signals amplify conviction when the
 
 **Source `fetch()` contract:** All sources return `tuple[list[MarketObservation | FeatureObservation], SourceRun]`. The `SourceRun` is always returned (even on failure). `records_stored` is always `0` — persisting to the database is the job's responsibility, not the source's. Use `datetime.now(UTC)` (not `utcnow()`) for timestamps.
 
-**USDA PSD (stocks-to-use):** Bulk CSV download, no auth. Commodity `0711100` = Coffee Green, country `0000` = World. `attribute_id` 176 = Ending Stocks, 57 = Domestic Consumption. Values are retroactively revised — log each monthly release in production to track vintage snapshots.
+**USDA PSD (stocks-to-use):** Source file `usda_psd.py`. Bulk per-commodity ZIP at `https://apps.fas.usda.gov/psdonline/downloads/psd_coffee_csv.zip` (contains `psd_coffee.csv`), no auth. **Quirks verified against the live file — the original stub assumptions were wrong:** `Commodity_Code` is the **integer `711100`** (not string `"0711100"`); **there is NO World aggregate row** — PSD lists 94 individual countries, so the world total must be **summed across countries per `Market_Year`**; `Attribute_ID` **176 = Ending Stocks, 125 = Domestic Consumption** (attribute `57` is *Imports*, not consumption — do not use it). One row per (country, market_year, attribute) = latest vintage only. World stocks-to-use % = Σ(176) / Σ(125) × 100. Each marketing year's S/U is anchored to **Dec 31 of `Market_Year`**; PSD is annual, so downstream forward-fills to monthly before correlating (notebook 04). `fetch(start, end)` returns `FeatureObservation` (`feature_name="stocks_to_use_pct"`, asset `coffee:supply:world_stu`, type `supply_signal`); `load_from_csv(path)` is the offline counterpart for archived vintage snapshots. `stu_risk_score(pct)` maps S/U → 0–1 risk (provisional bounds: ≤12% → 1.0, 23.5% → 0.5, ≥35% → 0.0; calibrate in notebook 04). Values are retroactively revised — production logs each fetch as a SourceRun to track vintages. **Real-data note:** world S/U has fallen from ~22% (MY2018) to **11.6% (MY2025)** — the tightest buffer in the series.
 
 **NOAA ENSO ONI:** Fixed-width text (not CSV). Space-delimited, 4 columns: `SEAS YR TOTAL ANOM`. We use `ANOM` (the ONI anomaly in °C). Missing-value sentinel: `-99.9` — skip silently, do not treat as parse error.
 - **Year-boundary rule:** NOAA's `YR` is the calendar year of the MIDDLE month of the season. `NDJ` is the only season whose final month (January) falls in `YR+1`. All other seasons end in `YR`. Implementation: `end_year = yr + 1 if season == "NDJ" else yr`.
@@ -147,7 +147,7 @@ Price position drives timing. Supply/climate signals amplify conviction when the
 
 **CHIRPS (Brazil):** Requires `earthengine-api` Python package for GEE extraction over Minas Gerais boundary (use FAO GAUL dataset). Fallback: direct NetCDF from `data.chc.ucsb.edu` (no approval needed). Strongest signal during flowering season: Sep–Nov.
 
-**CFTC COT:** Use disaggregated report (not legacy) for "Managed Money" breakdown. Annual CSVs at cftc.gov. Align weekly Tuesday positions to month-end for backtest. COT index = (noncomm_net − 3y_min) / (3y_max − 3y_min).
+**CFTC COT:** Source file `cot.py`. Use the **disaggregated** report (not legacy) for the "Managed Money" breakdown. Annual futures-only ZIPs at `https://www.cftc.gov/files/dea/history/fut_disagg_txt_{year}.zip`, each containing one CSV (`f_year.txt` — locate by `.txt` suffix, do not hardcode the member name). No auth. Columns: `Market_and_Exchange_Names` (filter rows containing `COFFEE C - ICE`), the weekly Tuesday report date (**column name varies by vintage** — pre-2013 it is `Report_Date_as_MM_DD_YYYY`, 2013+ it is `Report_Date_as_YYYY-MM-DD`; *both carry ISO `YYYY-MM-DD` values* despite the older header, so match the common `Report_Date_as_` prefix and let `pd.to_datetime` parse — matching only `Report_Date_as_YYYY` silently drops 2010–2012), `M_Money_Positions_Long_All`, `M_Money_Positions_Short_All`. Read with `low_memory=False` (100+ columns, mixed dtypes in unused trader-count fields). The disaggregated report does not exist before 2010 — `fut_disagg_txt_2008.zip` / `2009` return HTTP 404 (handled as PARTIAL). Net managed-money = long − short. `fetch(start, end)` downloads one ZIP per calendar year in range and returns raw weekly `FeatureObservation`s (`feature_name="managed_money_net"`, asset `coffee:cot:kc`, type `positioning_signal`); a single year's HTTP/archive failure yields a PARTIAL run (not FAILED) as long as another year returns data. **Month-end alignment is a downstream/backtest concern, not the source's** — the source stays faithful to the native weekly cadence (mirrors ENSO returning raw ONI before lagging). `_cot_index(series, window=156)` returns a **0–100** rolling index `100 × (val − min) / (max − min)`; a flat trailing window (max == min) maps to 50 (neutral), not NaN. `cot_contrarian_signal(idx)`: +1 if idx < 25 (specs crowded short → buy), −1 if idx > 75 (crowded long → caution), else 0.
 
 ---
 
@@ -228,8 +228,17 @@ Signal output should be actionable in under 2 minutes. The product serves the Th
 - **Momentum baseline (above 3m MA) = −10.37%** — trend-following hurts vs naive; contrarian approach validated
 - **104w (2-year) window saves +15.01%** — outperforms 52w (+12.95%); consistent with 24m mean-reversion horizon (noted for composite formula tuning)
 
-**L2a–L5 — still on synthetic baseline (real backtest pending):**
-- Full 5-signal composite: **4.54% forward prescience** (vs 3.2% for L1 alone — 42% better)
+**L2a (USDA stocks-to-use) — backtested on real data; strong on price level, gate metric needs redefining (notebook 04):**
+- YoY-change metric (README gate) = −0.04 → FAILS as literally specified; but r(S/U, price **level**) = **−0.40** (monthly, p≈1.7e-8), −0.56 annual (n=15), −0.59 @ 23m lag — a strong supply fundamental
+- S/U is a slow annual step function: it tracks the price *level* tightly but not high-frequency YoY *momentum*; YoY-change is the wrong lens. **Redefine the L2a gate to price-level correlation (cf. L1).** On that basis L2a is the strongest fundamental after L1, preserving rank order.
+- World buffer 11.6% (MY2025), tightest in series → `stu_risk_score` ≈ 1.0; calibrate the 12%/35% bounds against the realized 11.6–23% range.
+
+**L2b (ENSO) and L5 (COT) — backtested on real data, both FAIL their original gates:**
+- L2b: −0.127 @ 24m lag (gate ≤ −0.20); strongest contemporaneously (−0.338); revised to current-state amplifier
+- L5: −0.05 @ fwd 12m (gate ≥ +0.08); contrarian thesis inverted — managed money trend-follows in coffee, r(COT index, fwd 3–6m) = +0.14; revise to a low-weight momentum-confirmation role or drop. Revisit `cot_contrarian_signal` sign/threshold before composite wiring.
+
+**L3 (CHIRPS) — still on synthetic baseline (real backtest pending, blocked on GEE):**
+- Full 5-signal composite: **4.54% forward prescience** (vs 3.2% for L1 alone — 42% better) — synthetic; must be re-run now that L2b/L5 failed and L2a needs a redefined gate
 - Spike avoidance (2024 Arabica +110%): 200 kg/month roaster saved ~$3,000 in one quarter
 - Signal rank order (L1 > L2a > L2b > L3 > L5) must be confirmed on real data before product work
 
