@@ -1,0 +1,29 @@
+name: verify
+
+# Runs the same gate as `make verify` (check-imports + lint + test) on every
+# push and PR. This is the enforced backstop — CLAUDE.md asks contributors to
+# run `make verify` locally, but only CI guarantees nothing red reaches main.
+# To make it *blocking*, enable branch protection on `main` requiring this check
+# (Settings → Branches → Add rule → Require status checks → "verify").
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies (lockfile must be current)
+        run: uv sync --frozen
+
+      - name: make verify (check-imports + lint + test)
+        run: make verify

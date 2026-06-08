@@ -23,8 +23,14 @@ Planned but not yet merged to `main`:
 - `tests/domains/coffee/test_noaa_enso.py` — updated the 8 `enso_risk_score` assertions for the flipped sign; all 26 ENSO tests pass.
 - `notebooks/coffee_backtests/02_enso_signal.ipynb` — rebuilt around the El Niño thesis. Redefined gate: peak r(ONI, forward-12m YoY) ≥ +0.20 in the 10–18m band. **Now PASSES** — r=+0.288 @15m lead (KC=F 2010–24, p=1.6e-4) and r=+0.327 @15m (WB Arabica 2000–24, p=1.4e-8, confirming it is not a single-2024 artifact). Added an event study: El Niño months are followed by **+36.5%** mean fwd-12m price change vs La Niña **−1.7%** (Welch t=5.83, p<0.001). Explains the strong *contemporaneous* negative r (−0.34) as a lead/lag artifact of ENSO quasi-periodicity, not causation.
 
+### Added
+- `.github/workflows/verify.yml` — CI running `make verify` (check-imports + lint + test, via `uv sync --frozen`) on every push to `main` and every PR. Closes the gap that let a lint-breaking commit reach `main`: the "run `make verify` before committing" rule was CLAUDE.md convention only, with no enforcement (no CI, no git hook). CI is the model- and human-agnostic backstop; enable branch protection on `main` to make it blocking.
+
+### Fixed
+- `notebooks/coffee_backtests/01_ice_price_signal.ipynb` — 6 ruff lint errors (unsorted imports, empty f-strings, ambiguous `l` loop vars) that were breaking `make verify`. Note: the PostToolUse `ruff format` hook does not run `ruff check`, so these were never auto-caught — hence the new CI gate.
+
 ### Why it matters
-L2b moves from FAIL to a validated lead signal — the first climate signal to clear its gate — and the user-facing language flips ("El Niño developing → Vietnam crop short in ~14 months" rather than the previous, incorrect La Niña framing).
+L2b moves from FAIL to a validated lead signal — the first climate signal to clear its gate — and the user-facing language flips ("El Niño developing → Vietnam crop short in ~14 months" rather than the previous, incorrect La Niña framing). CI now prevents red builds (lint/test/import-boundary) from reaching `main` regardless of who or what commits.
 
 ---
 

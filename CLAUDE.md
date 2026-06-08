@@ -175,6 +175,12 @@ Price position drives timing. Supply/climate signals amplify conviction when the
 ### Hooks (`.claude/settings.json`)
 - **PostToolUse (Edit|Write):** Ruff auto-formats every file after each edit — no manual `make format` needed
 - **PreToolUse (Write|Edit):** Blocks any write to `.env` — secrets must be managed manually, never by Claude
+- **Note — format ≠ lint:** the PostToolUse hook runs `ruff format` only. It does **not** run `ruff check`, so lint errors (empty f-strings, import order, ambiguous names) slip past it. CI is the backstop that catches them — run `make verify` before committing.
+
+### CI (`.github/workflows/verify.yml`)
+- Runs `make verify` (check-imports + lint + test) on every push to `main` and every PR. This is the **enforced** gate — CLAUDE.md asks contributors to run `make verify` locally, but that is convention; only CI/branch-protection guarantees nothing red reaches `main`. Uses `uv sync --frozen`, so an out-of-date `uv.lock` also fails CI.
+- **To make it blocking:** enable branch protection on `main` (Settings → Branches → require the `verify` status check). Until then CI is informational — a red run does not prevent a merge/push.
+- **Doc freshness is *not* enforced by a hook** — it is the "Keeping This File Current" instructions in this file, which every Claude Code session in this repo loads automatically. It is prompt-level (model-dependent), not a deterministic gate; a manual commit or a non-complying agent can skip it.
 
 ### MCP Servers (`.mcp.json`)
 - **`github`** — `@modelcontextprotocol/server-github`, auth via `GITHUB_TOKEN` env var. Use for PR management, issue triage, branch operations

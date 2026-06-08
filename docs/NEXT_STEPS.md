@@ -31,6 +31,11 @@ The skeleton is built and the architecture is locked. The immediate work is impl
 - [ ] **Run `notebooks/coffee_backtests/06_composite_backtest.ipynb`** — all 5 sources now implemented. Re-validate the composite on real data with the revised signal roles (L1 strong; L2a strong on level; **L2b now a validated ~14m El Niño lead, r≈+0.29–0.33**; L3/L5 weak amplifiers). When wiring L2b into the composite, apply a **~14m lead** and the **flipped** `enso_risk_score` (El Niño→high risk). Confirm/adjust the conditional formula and weights
 - [ ] **Run `notebooks/coffee_backtests/06_composite_backtest.ipynb`** — confirm all five gates pass and signal rank order holds
 
+### Tooling / infra
+- [x] **Add CI** — `.github/workflows/verify.yml` runs `make verify` (check-imports + lint + test) on push to `main` + PRs. Closes the gap that let a lint-breaking commit land (verify-before-commit was CLAUDE.md convention only, never enforced)
+- [ ] **Enable branch protection on `main`** (GitHub repo admin) — require the `verify` status check to pass before merge/push. Until this is set, CI is informational only and a red run does not block. Both founders should also confirm their Claude Code loads the project `.claude/settings.json` hooks + `CLAUDE.md` (they are checked in, not gitignored)
+- [ ] *(optional)* Add a CHANGELOG-freshness CI nudge (warn if `domains/`, `core/`, or notebooks changed without a `CHANGELOG.md` edit) — deterministic reminder for the doc-update convention. Hold unless doc drift recurs
+
 ---
 
 ## Blocked / waiting
