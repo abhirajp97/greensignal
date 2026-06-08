@@ -120,7 +120,7 @@ Price position drives timing. Supply/climate signals amplify conviction when the
 |-------|--------|--------|-----------|-------------|
 | L1 | 52-week price position | ICE KC=F / Yahoo Finance `KC=F` | +0.64 (contemp) | **+0.852 (contemp); +0.201 @ 24m fwd** ✅ |
 | L2a | Stocks-to-use % | USDA PSD (`apps.fas.usda.gov/psdonline`) | −0.35 | **YoY-change metric −0.04 (FAIL); but price level −0.40, annual −0.56, −0.59 @ 23m** — strong fundamental; YoY is wrong lens for an annual stock var, redefine gate to price level (cf. L1) |
-| L2b | ENSO ONI, 24m lag | NOAA CPC (`cpc.ncep.noaa.gov/data/indices/oni.ascii.txt`) | −0.30 | **−0.127 @ 24m lag (FAIL); −0.338 contemporaneous** — signal peaks at 0–7m; revised to current-state amplifier |
+| L2b | ENSO ONI, ~14m **lead** (El Niño) | NOAA CPC (`cpc.ncep.noaa.gov/data/indices/oni.ascii.txt`) | −0.30 | **+0.288 @ 15m lead vs fwd YoY (PASS); +0.327 @ 15m on WB 2000–24, p=1.4e-8** — original "La Niña drought" thesis had sign **and** lag backwards; corrected to El Niño supply-risk amplifier (see below) |
 | L3 | Brazil CHIRPS rainfall (Minas Gerais) | Google Earth Engine or `data.chc.ucsb.edu` | +0.21 | **+0.10 monthly @ 14m lag (narrow FAIL); drought_risk +0.11; annual flowering-dryness vs fwd 12m price +0.40 (n=15, p=0.14)** — right sign/lag/mechanism, underpowered; keep as low-weight flowering amplifier |
 | L5 | COT speculative net (contrarian) | CFTC disaggregated report (`cftc.gov`) | +0.15 | **−0.05 @ fwd 12m (FAIL)** — contrarian thesis inverted; managed money trend-follows, r(index)=+0.14 @ fwd 3–6m; revise to momentum-confirmation role or drop |
 
@@ -140,8 +140,8 @@ Price position drives timing. Supply/climate signals amplify conviction when the
 - **Year-boundary rule:** NOAA's `YR` is the calendar year of the MIDDLE month of the season. `NDJ` is the only season whose final month (January) falls in `YR+1`. All other seasons end in `YR`. Implementation: `end_year = yr + 1 if season == "NDJ" else yr`.
 - **Date assignment:** Use the last day of the season's final month (`calendar.monthrange`). Example: `DJF 1950 → 1950-02-28`; `NDJ 1950 → 1951-01-31`.
 - **Asset:** `climate:enso:oni` (type `climate_signal`, domain `coffee`). Returns `FeatureObservation` with `feature_name="oni_anom"`, not `MarketObservation`.
-- **`enso_risk_score(oni)`:** Linear, clamped `max(0, min(1, 0.5 - oni/3.0))`. ONI ≤ −1.5 → risk=1.0 (strong La Niña); ONI=0 → risk=0.5 (neutral); ONI ≥ +1.5 → risk=0.0. La Niña (negative ONI) drives higher supply risk because it causes drought in Brazil and Vietnam 18–24 months later.
-- Apply **18m and 24m lags** before correlating with Arabica prices in the composite.
+- **`enso_risk_score(oni)`:** Linear, clamped `max(0, min(1, 0.5 + oni/3.0))`. ONI ≥ +1.5 → risk=1.0 (strong El Niño); ONI=0 → risk=0.5 (neutral); ONI ≤ −1.5 → risk=0.0 (strong La Niña). **El Niño (positive ONI) drives higher supply risk** — it droughts Vietnam + Indonesia robusta at flowering (the largest producers by volume) and stresses parts of Brazil, with the shortfall reaching market ~12–16 months later. This **corrects the original inverted thesis** ("La Niña causes Brazil/Vietnam drought") — the sign was flipped. ENSO effects are origin-specific (see `docs/enso_coffee_country_matrix.html`): El Niño hurts SE-Asia robusta but is *beneficial* for Colombia and roughly neutral/mildly-positive for Brazil arabica (frost avoidance), so net |r| stays modest (~0.3) and the signal is a low-weight amplifier, not a standalone timing signal.
+- Apply a **~14m lead** (not 18–24m) before correlating with Arabica prices. The signal is against **forward** YoY price change: high ONI now → price up ~14m later. The strong *contemporaneous* negative r(ONI, price) ≈ −0.34 is a lead/lag artifact of ENSO's quasi-periodicity (La Niña follows the El Niño that caused the shortage) — do **not** read it as "La Niña → high prices". Validated in notebook 02: r=+0.288 @15m (KC 2010–24) / +0.327 @15m (WB 2000–24, p=1.4e-8); event study El Niño months → +36.5% fwd-12m vs La Niña −1.7% (t=5.83).
 
 **World Bank Pink Sheet (physical coffee prices):** Free, no auth. Source file `world_bank_commodity.py`. Two-step fetch: (1) GET `https://www.worldbank.org/en/research/commodity-markets` to scrape the current Excel download URL (URL embeds a monthly hash — cannot be hardcoded); (2) download and parse `CMO-Historical-Data-Monthly.xlsx`, sheet `Monthly Prices`. Series `COFFEE_ARABIC` (Other Mild Arabicas — proxy for ICO Arabica indicator; Colombia, Kenya, Tanzania washed coffees) and `COFFEE_ROBUS` (Robusta — proxy for ICO Robusta indicator). Source units are USD/kg; always convert to USc/lb (× 100/2.20462 = × 45.3592) for consistency with KC=F. Column header row is index 6 (machine codes) — locate columns dynamically, never hardcode positions. Date format: `"YYYYMmm"` (e.g. `"2026M04"`) → last day of that month. NaN values = data not yet published for that month — skip silently (not a parse error). **pandas quirk:** when reading the code-row with `df.iloc[6].astype(str)`, columns whose dtype is `float64` (because rows above them had NaN) keep `np.float64(nan)` as actual floats even after `astype(str)`; always do `df.iloc[row].fillna("").astype(str)` before string comparisons. Assets: `WB_ARABICA_BENCHMARK` (`coffee:benchmark:wb:arabica`) and `WB_ROBUSTA_BENCHMARK` (`coffee:benchmark:wb:robusta`) in `domains/coffee/registry/assets.py`.
 
@@ -209,7 +209,7 @@ Never use technical jargon in user-facing copy. Translate everything:
 | Technical | User-facing |
 |-----------|-------------|
 | "stocks-to-use 13%" | "The world's coffee buffer is the lowest in 20 years" |
-| "ENSO ONI −0.8, La Niña" | "La Niña is developing — Vietnam harvest could be short in 18 months" |
+| "ENSO ONI +0.8, El Niño" | "El Niño is developing — Vietnam's harvest could be short in ~14 months, supporting prices" |
 | "COT index < 25" | "Hedge funds are unusually pessimistic — often a buy signal" |
 | "composite score 0.28" | "Ethiopia: near a 2-year price low. Good window to buy." |
 
@@ -234,8 +234,12 @@ Signal output should be actionable in under 2 minutes. The product serves the Th
 - S/U is a slow annual step function: it tracks the price *level* tightly but not high-frequency YoY *momentum*; YoY-change is the wrong lens. **Redefine the L2a gate to price-level correlation (cf. L1).** On that basis L2a is the strongest fundamental after L1, preserving rank order.
 - World buffer 11.6% (MY2025), tightest in series → `stu_risk_score` ≈ 1.0; calibrate the 12%/35% bounds against the realized 11.6–23% range.
 
-**L2b (ENSO) and L5 (COT) — backtested on real data, both FAIL their original gates:**
-- L2b: −0.127 @ 24m lag (gate ≤ −0.20); strongest contemporaneously (−0.338); revised to current-state amplifier
+**L2b (ENSO) — re-backtested with corrected thesis; now PASSES (notebook 02):**
+- The original gate (r ≤ −0.20 @ 24m lag, "La Niña drought") FAILED because both the **sign and the lag were wrong**. The country matrix (`docs/enso_coffee_country_matrix.html`, verified against peer-reviewed sources) shows El Niño — not La Niña — is the dominant coffee supply-risk phase: it droughts Vietnam + Indonesia robusta at flowering, while La Niña is *beneficial* for those origins and for Brazil arabica (frost avoidance) and only hurts Colombia.
+- Redefined gate (r ≥ +0.20 vs **forward** YoY, 10–18m band) **PASSES**: r=+0.288 @15m lead (KC 2010–24, p=1.6e-4) and r=+0.327 @15m (WB 2000–24, p=1.4e-8 — confirms it is not a single-2024 artifact). Event study: El Niño months → **+36.5%** fwd-12m vs La Niña −1.7% (Welch t=5.83, p<0.001).
+- `enso_risk_score` sign flipped (now rises with El Niño). Stays a low-weight amplifier (|r|~0.3 because the Brazil-arabica frost channel offsets the SE-Asia drought channel), but it now clears its gate — upgrade L2b from "weak amplifier" to a validated lead signal.
+
+**L5 (COT) — backtested on real data, FAILS its original gate:**
 - L5: −0.05 @ fwd 12m (gate ≥ +0.08); contrarian thesis inverted — managed money trend-follows in coffee, r(COT index, fwd 3–6m) = +0.14; revise to a low-weight momentum-confirmation role or drop. Revisit `cot_contrarian_signal` sign/threshold before composite wiring.
 
 **L3 (CHIRPS) — backtested on real data (GEE); narrow FAIL, mechanistically sound (notebook 05):**
@@ -243,9 +247,9 @@ Signal output should be actionable in under 2 minutes. The product serves the Th
 - Keep as a **low-weight flowering-season amplifier** via `drought_risk_score`; too weak/underpowered to time on alone. Consider a flowering-window-only feature as more crop years accrue.
 
 **All 5 sources now implemented and backtested on real data.** Composite (notebook 06) is the remaining validation:
-- Full 5-signal composite: **4.54% forward prescience** (Phase 0 synthetic) — must be re-run now that only L1 (and L2a on price level) clear their gates; L2b/L3/L5 are weak amplifiers, not standalone signals. Reweighting likely needed.
+- Full 5-signal composite: **4.54% forward prescience** (Phase 0 synthetic) — must be re-run now that L1, L2a (on price level) and **L2b (on the ~14m El Niño lead)** clear their gates; L3/L5 remain weak amplifiers. Reweighting likely needed.
 - Spike avoidance (2024 Arabica +110%): 200 kg/month roaster saved ~$3,000 in one quarter
-- Real-data rank order is broadly L1 > L2a > {L2b, L3, L5}; confirm in the composite before product work
+- Real-data rank order is broadly L1 ≈ L2a > L2b > {L3, L5}; confirm in the composite before product work
 
 **Nasdaq Data Link CHRIS access:** CHRIS futures database requires a paid subscription. Production `ice_coffee_c.py` targets `CHRIS/ICE_KC1`; backtests use Yahoo Finance `KC=F` (same instrument). Activate paid plan before deploying the production ingestion job.
 

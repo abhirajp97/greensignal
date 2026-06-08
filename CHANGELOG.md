@@ -9,9 +9,22 @@ Versions are dated. Each entry covers what changed, why it matters, and who did 
 ## [Unreleased]
 
 Planned but not yet merged to `main`:
-- Composite backtest (notebook 06) on real data — reweight now that only L1 (+ L2a on level) clear their gates
+- Composite backtest (notebook 06) on real data — reweight now that L1, L2a (on level) and L2b (~14m El Niño lead) clear their gates
 - Redefine the L2a gate to price-level correlation (cf. L1)
 - Decide L5 composite role (momentum-confirmation vs drop)
+
+---
+
+## [0.15.0] — 2026-06-08
+
+### Changed
+- **Corrected the L2b ENSO thesis — sign and lag were both backwards.** The original signal encoded "La Niña droughts Brazil/Vietnam → higher prices 18–24m later." Verified the new country-impact matrix (`docs/enso_coffee_country_matrix.html`) against peer-reviewed and industry sources: **El Niño** is the dominant coffee supply-risk phase. El Niño droughts Vietnam + Indonesia robusta (~40M bags) at flowering and stresses parts of Brazil; La Niña is *beneficial* for those origins and for Brazil arabica (frost avoidance) and mainly hurts Colombia. The net effect is therefore modest and origin-offsetting, which is why the aggregate ENSO signal is a low-weight amplifier.
+- `domains/coffee/sources/noaa_enso.py` — flipped `enso_risk_score` from `0.5 − oni/3` to `0.5 + oni/3` (El Niño/positive ONI → high risk). Rewrote module + function docstrings to the corrected thesis and changed lag guidance from 18–24m to a **~14m lead** against **forward** YoY price.
+- `tests/domains/coffee/test_noaa_enso.py` — updated the 8 `enso_risk_score` assertions for the flipped sign; all 26 ENSO tests pass.
+- `notebooks/coffee_backtests/02_enso_signal.ipynb` — rebuilt around the El Niño thesis. Redefined gate: peak r(ONI, forward-12m YoY) ≥ +0.20 in the 10–18m band. **Now PASSES** — r=+0.288 @15m lead (KC=F 2010–24, p=1.6e-4) and r=+0.327 @15m (WB Arabica 2000–24, p=1.4e-8, confirming it is not a single-2024 artifact). Added an event study: El Niño months are followed by **+36.5%** mean fwd-12m price change vs La Niña **−1.7%** (Welch t=5.83, p<0.001). Explains the strong *contemporaneous* negative r (−0.34) as a lead/lag artifact of ENSO quasi-periodicity, not causation.
+
+### Why it matters
+L2b moves from FAIL to a validated lead signal — the first climate signal to clear its gate — and the user-facing language flips ("El Niño developing → Vietnam crop short in ~14 months" rather than the previous, incorrect La Niña framing).
 
 ---
 

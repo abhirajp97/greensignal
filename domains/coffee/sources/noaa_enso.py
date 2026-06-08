@@ -29,10 +29,29 @@ Missing-value sentinel: NOAA uses -99.9 for not-yet-published seasons.
 ENSO thresholds:
     ONI ≥ +0.5 for ≥ 5 consecutive seasons → El Niño (warm)
     ONI ≤ −0.5 for ≥ 5 consecutive seasons → La Niña (cool)
-    La Niña → drought risk in Brazil / Vietnam → higher coffee prices 18–24 m later.
+
+ENSO → coffee supply (corrected, country-specific — see docs/enso_coffee_country_matrix.html):
+    ENSO has *opposite* effects in different origins, so there is no single
+    "La Niña is bad" rule. The dominant phase for global supply risk is EL NIÑO:
+      - Vietnam + Indonesia robusta (~40M bags): El Niño shifts Pacific rain east,
+        drying the Central Highlands at flowering → reduced yield. (Strongest, most
+        robust link; 2015-16 and 2023-24 events both cut the Vietnam crop.)
+      - Colombia arabica: El Niño is BENEFICIAL (drier/sunnier); La Niña excess rain
+        cuts yield and raises leaf-rust pressure.
+      - Brazil arabica (Minas Gerais): weak/ambiguous — El Niño warmth reduces frost
+        risk and peer-reviewed yield studies find a slight POSITIVE effect in southern
+        Minas, partly offsetting the SE-Asia drought channel. (This is why the net ENSO
+        signal is modest, not strong.)
+    Net empirically: high ONI (El Niño) precedes higher Arabica prices ~12–16 months
+    later (notebook 02: r(ONI, fwd-12m YoY) ≈ +0.29 KC=F / +0.33 WB Arabica, peak at
+    14–15m lag, p < 1e-3). This is the El Niño drought → harvest shortfall → price lag.
+    NOTE: the *contemporaneous* r(ONI, price) is negative (≈ −0.34) — a lead/lag artifact
+    of ENSO's quasi-periodicity (La Niña typically follows the El Niño that caused the
+    shortage, so it coincides with the resulting price spike). Do not read the
+    contemporaneous sign as "La Niña causes high prices."
 
 Usage in composite:
-    Apply 18- and 24-month lags before correlating with Arabica prices.
+    Apply a ~14-month lag before correlating with Arabica prices (not 18–24m).
     `enso_risk_score()` converts a raw ONI anomaly to a 0–1 supply-risk score.
 """
 
@@ -140,18 +159,25 @@ def fetch(start: date, end: date) -> tuple[list[FeatureObservation], SourceRun]:
 def enso_risk_score(oni: float) -> float:
     """Convert a raw ONI anomaly to a 0–1 supply-risk score for the composite.
 
-    Risk increases with La Niña severity (negative ONI) because La Niña causes
-    drought in Brazil's Minas Gerais and Vietnam's Central Highlands ~18–24 m later.
-    El Niño (positive ONI) also carries risk but the mechanism is different and
-    the effect on Arabica prices is weaker at the same lag.
+    Risk increases with El Niño severity (POSITIVE ONI). El Niño droughts the
+    largest producers by volume — Vietnam + Indonesia robusta at flowering — and
+    historically precedes Arabica price spikes by ~12–16 months (notebook 02:
+    r(ONI, fwd-12m YoY price) ≈ +0.29 to +0.33 at a 14–15m lag). La Niña
+    (negative ONI) is net beneficial for the dominant producers (wetter SE Asia,
+    frost-free Brazil), so it maps to low supply risk. This corrects the original
+    inverted thesis ("La Niña causes Brazil/Vietnam drought"), which had both the
+    sign and the lag backwards.
+
+    The signal is a low-weight AMPLIFIER, not a standalone timing signal — the
+    Brazil-arabica channel partly offsets the SE-Asia one, so |r| stays modest.
 
     Scale (linear, clamped):
-        ONI ≤ −1.5  → risk = 1.0  (strong La Niña, high supply risk)
+        ONI ≥ +1.5  → risk = 1.0  (strong El Niño, high supply risk ~14m out)
         ONI =  0.0  → risk = 0.5  (neutral, moderate background risk)
-        ONI ≥ +1.5  → risk = 0.0  (strong El Niño, low near-term supply risk)
+        ONI ≤ −1.5  → risk = 0.0  (strong La Niña, low near-term supply risk)
     """
-    # Linear interpolation: score = 0.5 - oni/3, clamped to [0, 1]
-    return float(max(0.0, min(1.0, 0.5 - oni / 3.0)))
+    # Linear interpolation: score = 0.5 + oni/3, clamped to [0, 1]
+    return float(max(0.0, min(1.0, 0.5 + oni / 3.0)))
 
 
 # ── Private helpers ────────────────────────────────────────────────────────────

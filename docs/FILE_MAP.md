@@ -110,7 +110,7 @@ All models use `pydantic.BaseModel`. These are the objects that flow between eve
 |------|-----------------|--------|
 | `price_features.py` | `price_position_52w` (0–1), `yoy_price_change`, `price_momentum_12m` (context only — not a buy signal) | ✅ Done |
 | `supply_features.py` | `stu_risk_score` (STU % → 0–1 risk), `supply_regime` label | 🔲 Stub |
-| `climate_features.py` | `enso_lagged` (24m shift), `climate_risk_score` (weighted sub-signal combination) | 🔲 Stub |
+| `climate_features.py` | `enso_lagged` (~14m shift, El Niño lead), `climate_risk_score` (weighted sub-signal combination) | 🔲 Stub |
 | `margin_features.py` | `roaster_margin`, `forward_buy_saving` — dollar-impact numbers for roasters | 🔲 Stub |
 
 ### `domains/coffee/models/` — Signal assembly
@@ -155,7 +155,7 @@ Empty — React + Vite scaffold deferred until data pipeline and signal are vali
 | `coffee_backtests/README.md` | Pass/fail gates for each signal on real data. All notebooks must pass these before product work begins. | ✅ Done |
 | `coffee_backtests/01_ice_price_signal.ipynb` | L1: fetch real ICE KC data, validate price_position_52w correlation | ✅ Done (r=+0.852, saving=+10.73%, all gates PASS) |
 | `coffee_backtests/07_wb_physical_prices.ipynb` | WB Arabica & Robusta L1 gates + basis analysis vs KC=F | ✅ Done (Arabica r=+0.835, Robusta r=+0.748, all gates PASS) |
-| `coffee_backtests/02_enso_signal.ipynb` | L2b: NOAA ONI backtest; gate FAILS at 24m lag (r=−0.127); signal strongest at 0–7m lag; revised to current-state amplifier role | ✅ Done |
+| `coffee_backtests/02_enso_signal.ipynb` | L2b: NOAA ONI backtest, corrected El Niño thesis; gate PASSES — r=+0.288 @15m lead (KC), +0.327 @15m (WB 2000–24, p=1.4e-8); event study El Niño→+36.5% fwd-12m vs La Niña −1.7%. Original sign+lag were backwards | ✅ Done |
 | `coffee_backtests/03_cot_signal.ipynb` | L5: CFTC COT backtest; gate FAILS (contrarian r=−0.05 @ fwd 12m); contrarian thesis inverted — managed money trend-follows (r=+0.14 @ fwd 3–6m); recommend revising L5 role or dropping | ✅ Done |
 | `coffee_backtests/04_usda_supply_signal.ipynb` | L2a: USDA world stocks-to-use backtest; YoY-change gate FAILS (r=−0.04) but signal strong on price level (r=−0.40 monthly, −0.56 annual, −0.59 @ 23m lag); recommend redefining L2a gate to price level (cf. L1) | ✅ Done |
 | `coffee_backtests/05_chirps_signal.ipynb` | L3: CHIRPS Minas Gerais drought backtest; gate narrowly FAILS (r=+0.10 @ 14m) but right sign/lag/mechanism, annual flowering r=+0.40; keep as low-weight flowering amplifier | ✅ Done |

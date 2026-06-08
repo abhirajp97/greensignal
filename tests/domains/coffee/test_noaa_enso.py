@@ -83,25 +83,27 @@ class TestSeasonToDate:
 
 
 class TestEnsoRiskScore:
-    def test_strong_la_nina_is_max_risk(self):
-        assert enso_risk_score(-1.5) == pytest.approx(1.0)
+    def test_strong_el_nino_is_max_risk(self):
+        # El Niño (positive ONI) is the dominant global supply-risk phase
+        assert enso_risk_score(1.5) == pytest.approx(1.0)
 
-    def test_stronger_la_nina_clamped_at_one(self):
-        assert enso_risk_score(-3.0) == pytest.approx(1.0)
+    def test_stronger_el_nino_clamped_at_one(self):
+        assert enso_risk_score(3.0) == pytest.approx(1.0)
 
     def test_neutral_is_half(self):
         assert enso_risk_score(0.0) == pytest.approx(0.5)
 
-    def test_strong_el_nino_is_min_risk(self):
-        assert enso_risk_score(1.5) == pytest.approx(0.0)
+    def test_strong_la_nina_is_min_risk(self):
+        # La Niña (negative ONI) is net beneficial for the dominant producers
+        assert enso_risk_score(-1.5) == pytest.approx(0.0)
 
-    def test_stronger_el_nino_clamped_at_zero(self):
-        assert enso_risk_score(3.0) == pytest.approx(0.0)
+    def test_stronger_la_nina_clamped_at_zero(self):
+        assert enso_risk_score(-3.0) == pytest.approx(0.0)
 
-    def test_moderate_la_nina(self):
-        # oni = -0.85 → 0.5 - (-0.85)/3 = 0.5 + 0.283 = 0.783
-        expected = 0.5 - (-0.85) / 3.0
-        assert enso_risk_score(-0.85) == pytest.approx(expected, abs=1e-6)
+    def test_moderate_el_nino(self):
+        # oni = +0.85 → 0.5 + 0.85/3 = 0.5 + 0.283 = 0.783
+        expected = 0.5 + 0.85 / 3.0
+        assert enso_risk_score(0.85) == pytest.approx(expected, abs=1e-6)
 
     def test_output_always_in_unit_interval(self):
         for oni in [-5.0, -1.0, 0.0, 1.0, 5.0]:

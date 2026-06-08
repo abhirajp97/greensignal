@@ -1,0 +1,97 @@
+
+<style>
+.enso-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.enso-table th { font-weight: 500; font-size: 12px; text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--color-border-secondary); color: var(--color-text-secondary); }
+.enso-table td { padding: 8px 10px; border-bottom: 1px solid var(--color-border-tertiary); vertical-align: top; }
+.enso-table tr:last-child td { border-bottom: none; }
+.country { font-weight: 500; color: var(--color-text-primary); }
+.sub { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+.bad-el  { background: #FAECE7; color: #993C1D; }
+.bad-la  { background: #FAECE7; color: #993C1D; }
+.good-el { background: #EAF3DE; color: #3B6D11; }
+.good-la { background: #EAF3DE; color: #3B6D11; }
+.neutral { background: #F1EFE8; color: #5F5E5A; }
+.mixed   { background: #FAEEDA; color: #854F0B; }
+@media (prefers-color-scheme: dark) {
+  .bad-el, .bad-la { background: #4A1B0C; color: #F0997B; }
+  .good-el, .good-la { background: #173404; color: #97C459; }
+  .neutral { background: #2C2C2A; color: #B4B2A9; }
+  .mixed   { background: #412402; color: #FAC775; }
+}
+.arrow-up   { color: #D85A30; }
+.arrow-down { color: #639922; }
+.section-header { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); padding: 10px 10px 4px; letter-spacing: 0.05em; }
+</style>
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden">ENSO effects on coffee production by country: El Niño vs La Niña impact matrix</h2>
+<table class="enso-table">
+  <thead>
+    <tr>
+      <th style="width:22%">Country / variety</th>
+      <th style="width:18%">El Niño (warm)</th>
+      <th style="width:18%">La Niña (cool)</th>
+      <th style="width:20%">Critical window</th>
+      <th style="width:22%">Mechanism</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><td colspan="5" class="section-header" style="padding-left:10px">SOUTHEAST ASIA — El Niño is the drought signal</td>
+    </tr>
+    <tr>
+      <td><span class="country">Vietnam</span><div class="sub">Robusta · 27–30M bags</div></td>
+      <td><span class="badge bad-el">Drought ↓ supply</span></td>
+      <td><span class="badge mixed">Wet harvest, ok yield</span></td>
+      <td>Flowering May–Jul<br><span class="sub">Harvest Oct–Jan</span></td>
+      <td><span style="color:var(--color-text-secondary);font-size:12px">El Niño shifts rain eastward off SE Asia → Central Highlands dry season intensifies → soil moisture deficit at flowering</span></td>
+    </tr>
+    <tr>
+      <td><span class="country">Indonesia</span><div class="sub">Robusta + Arabica · 10–12M bags</div></td>
+      <td><span class="badge bad-el">Drought + wildfire risk</span></td>
+      <td><span class="badge good-la">Beneficial rainfall</span></td>
+      <td>Flowering Jun–Aug<br><span class="sub">Harvest Oct–Mar (Sumatra)</span></td>
+      <td><span style="color:var(--color-text-secondary);font-size:12px">Same Pacific rain-shift as Vietnam; fire risk amplifies crop loss in severe El Niño years</span></td>
+    </tr>
+    <tr>
+      <td><td colspan="5" class="section-header" style="padding-left:10px">SOUTH AMERICA — El Niño effects are region-dependent</td>
+    </tr>
+    <tr>
+      <td><span class="country">Brazil Arabica</span><div class="sub">Minas Gerais, São Paulo · ~30M bags</div></td>
+      <td><span class="badge bad-el">Drought veranicos, heat stress</span></td>
+      <td><span class="badge good-la">Neutral to beneficial</span></td>
+      <td>Flowering Sep–Oct<br><span class="sub">Harvest May–Sep</span></td>
+      <td><span style="color:var(--color-text-secondary);font-size:12px">El Niño: delayed Sep rains → chaotic flowering; Dec–Feb veranicos stress cherries. CHIRPS on Minas Gerais captures this.</span></td>
+    </tr>
+    <tr>
+      <td><span class="country">Brazil Conilon</span><div class="sub">Espírito Santo · ~5–6M bags</div></td>
+      <td><span class="badge bad-el">Drought stress</span></td>
+      <td><span class="badge mixed">Excess rain, harvest issues</span></td>
+      <td>Flowering Sep–Nov<br><span class="sub">Harvest May–Aug</span></td>
+      <td><span style="color:var(--color-text-secondary);font-size:12px">Robusta needs higher soil moisture than Arabica — more sensitive to drought but also prone to flooding under La Niña</span></td>
+    </tr>
+    <tr>
+      <td><span class="country">Colombia</span><div class="sub">Arabica · ~12–14M bags</div></td>
+      <td><span class="badge good-el">Beneficial (drier)</span></td>
+      <td><span class="badge bad-la">Excess rain ↓ supply</span></td>
+      <td>Two cycles per year<br><span class="sub">Main: Apr–Jun / Oct–Dec</span></td>
+      <td><span style="color:var(--color-text-secondary);font-size:12px">Counterintuitive: Colombia needs drier El Niño conditions. La Niña excess rain promotes disease and disrupts bimodal harvest cycle.</span></td>
+    </tr>
+    <tr>
+      <td><td colspan="5" class="section-header" style="padding-left:10px">EAST AFRICA — El Niño brings excess rain, La Niña brings beneficial dryness</td>
+    </tr>
+    <tr>
+      <td><span class="country">Ethiopia</span><div class="sub">Arabica · ~8–10M bags</div></td>
+      <td><span class="badge mixed">Excess rain, disease ↑</span></td>
+      <td><span class="badge good-la">Drier, better quality</span></td>
+      <td>Long rains Mar–May<br><span class="sub">Harvest Oct–Jan</span></td>
+      <td><span style="color:var(--color-text-secondary);font-size:12px">East Africa sits in a region that gets wetter during El Niño. Excess rain during Mar–May raises CLR and CBD disease pressure.</span></td>
+    </tr>
+    <tr>
+      <td><span class="country">Kenya / Uganda</span><div class="sub">Arabica + Robusta · ~5M bags combined</div></td>
+      <td><span class="badge mixed">Excess rain, post-harvest losses</span></td>
+      <td><span class="badge good-la">Higher export revenues</span></td>
+      <td>Main crop Oct–Dec<br><span class="sub">Fly crop Apr–Jun</span></td>
+      <td><span style="color:var(--color-text-secondary);font-size:12px">Same East African teleconnection as Ethiopia. Empirically: La Niña years show ~6.6% higher export revenues vs neutral.</span></td>
+    </tr>
+  </tbody>
+</table>
