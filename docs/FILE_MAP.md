@@ -10,7 +10,7 @@ Every file in the repo, what it does, and its current status. Update this whenev
 |------|---------|
 | `pyproject.toml` | Project definition — Python version, all dependencies, Ruff + pytest config. `uv sync` reads this. |
 | `.env.example` | Template for secrets — copy to `.env` and fill in Nasdaq API key, Supabase URL/key, GEE project ID. |
-| `.gitignore` | Keeps `.env`, `.venv`, `__pycache__`, notebook checkpoints out of git. |
+| `.gitignore` | Keeps `.env`, `.venv`, `__pycache__`, notebook checkpoints, and generated notebook figures (`notebooks/**/data/*.png`) out of git. Cached source CSVs in those data folders are intentionally kept tracked (reproducibility). |
 | `Makefile` | `lint`, `test`, `check-imports` (enforces `core/` never imports `domains/`), `verify` (all three). |
 | `CLAUDE.md` | Instructions for Claude Code — architecture rules, commands, signal formulas, build sequence. |
 | `.mcp.json` | MCP server config — GitHub (`@modelcontextprotocol/server-github`) and Supabase (`@supabase/mcp-server-supabase`). Auth via env vars `GITHUB_TOKEN` and `SUPABASE_ACCESS_TOKEN`. |
