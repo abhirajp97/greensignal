@@ -21,13 +21,18 @@ rank order should be re-examined before proceeding.
 | L1 — price position 52w | Gate 1: contemp r ≥ +0.50 / Gate 2: cost saving ≥ 3% / Gate 3: zone monotone | r=+0.64 / saving=2.2% | see above | ✅ r=+0.852 / saving=+10.73% / monotone |
 | L2a — stocks-to-use % | Pearson r vs YoY price change | −0.35 | ≤ −0.25 | ⚠️ YoY metric FAILS (r=−0.04) but signal strong on **price level**: r=−0.40 monthly / −0.56 annual / −0.59 @ 23m lag. YoY-change is wrong lens for an annual stock var — recommend redefining gate to price level (cf. L1) |
 | L2b — ENSO ONI ~14m lead | Pearson r vs **fwd** YoY price change (gate redefined: positive, El Niño) | −0.30 | ≥ +0.20 in 10–18m band | ✅ PASS r=+0.288 @ 15m (KC, p=1.6e-4) / +0.327 @ 15m (WB 2000–24, p=1.4e-8); event study: El Niño months → +36.5% fwd-12m vs La Niña −1.7% (t=5.83, p<0.001). Original sign+lag were backwards — see notebook §intro |
-| L3 — Brazil CHIRPS drought | Pearson r vs YoY price change | +0.21 | ≥ +0.12 | ⚠️ narrowly FAILS: r=+0.10 monthly @ 14m lag (drought_risk +0.11); but right sign/lag/mechanism, annual flowering-dryness vs fwd 12m price r=+0.40 (n=15, p=0.14). Keep as low-weight flowering amplifier |
+| L3 — Brazil CHIRPS drought | **Redefined:** annual r(flowering SPI-3 deficit, fwd-12m price) | +0.21 | ≥ +0.30 (confirming signal) | ✅ PASS: r=+0.483 (p=0.069, n=15) after the **SPI rebuild**. Old monthly r≥+0.12 lens diluted an annual once-a-year signal (see notebook §intro). Deficit `max(0,−SPI3)` beats signed SPI (−0.412) → asymmetric tail risk; robust to look-ahead (expanding-window r=+0.494) and to a stocks-to-use control (partial r=+0.48); driest vs wettest flowering third → +33.6% vs +9.5% fwd-12m. Confirming amplifier, not a standalone timing signal |
 | L5 — COT contrarian | Pearson r vs YoY price change | +0.15 | ≥ +0.08 | ❌ r=−0.05 @ fwd 12m (FAIL); contrarian thesis inverted — specs trend-follow, r(index)=+0.14 @ fwd 3–6m |
 | Full composite | Forward 3–6m prescience after BUY | 4.54% | ≥ 3.50% | ⬜ pending |
 | Spike avoidance | Cost saving, 200 kg/mo roaster, 2024 rally | ~$3,000 | Confirm directionally | ⬜ pending |
 
 **Signal rank order must be preserved:** L1 > L2a > L2b > L3 > L5 by absolute r value.
 If this order breaks on real data, reweight the composite before building the product.
+**Caveat (post-rebuild):** L3's headline r=+0.483 is on the *annual crop-year* frame (n=15),
+which is not directly comparable to the *monthly* frames used for L1/L2a/L2b. L3 remains a
+low-to-mid-weight **confirming** amplifier, not a timing signal — do the apples-to-apples
+rank reconciliation and reweighting in the composite notebook (06), not by comparing these
+frame-mismatched r values.
 
 ## Data period
 
