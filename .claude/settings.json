@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd /Users/abhirajparikh/src/greensignal && uv run ruff format --quiet \"$CLAUDE_TOOL_INPUT_FILE_PATH\" 2>/dev/null || true",
+            "command": "cd /Users/arg/Projects/greensignal && uv run ruff format --quiet \"$CLAUDE_TOOL_INPUT_FILE_PATH\" 2>/dev/null || true",
             "timeout": 10
           }
         ]
