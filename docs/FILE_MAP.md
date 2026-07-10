@@ -39,6 +39,8 @@ Every file in the repo, what it does, and its current status. Update this whenev
 | `coffee_intelligence_mvp.md` | MVP feature set, ROI case, technical architecture overview, build sequence. |
 | `greensignal_procurement_intelligence_architecture.md` | Full system architecture — repo structure, canonical objects, data flows, domain expansion design. |
 | `phase0_next_steps.md` | Per-signal data source documentation and agreed next steps coming out of Phase 0 review. |
+| `notebook_01_guide.md` | Reader's guide for notebook 01 (ICE KC price position signal) — section-by-section explanation, math, and key numbers. |
+| `notebook_03_guide.md` | Reader's guide for notebook 03 (CFTC COT signal) — section-by-section explanation, momentum vs contrarian thesis, and why COT works as a composite modifier not a standalone signal. |
 
 ---
 
