@@ -9,9 +9,26 @@ Versions are dated. Each entry covers what changed, why it matters, and who did 
 ## [Unreleased]
 
 Planned but not yet merged to `main`:
-- Composite backtest (notebook 06) on real data — reweight now that L1, L2a (on level) and L2b (~14m El Niño lead) clear their gates
+- Composite backtest (notebook 06) on real data — reweight now that L1, L2a (on level), L2b (~14m El Niño lead) and L3 (SPI flowering deficit) clear their gates
 - Redefine the L2a gate to price-level correlation (cf. L1)
 - Decide L5 composite role (momentum-confirmation vs drop)
+- Promote the validated SPI flowering-deficit feature from notebook 05 into `domains/coffee/features/climate_features.py` (replacing the provisional mm-anomaly `drought_risk_score`)
+
+---
+
+## [0.16.0] — 2026-07-02
+
+### Changed
+- **Rebuilt the L3 CHIRPS drought signal around SPI (Standardized Precipitation Index) — now PASSES a redefined gate.** Per a commodity-desk review, replaced the raw `rain − historical_mean` (mm) anomaly with a gamma-fit SPI z-score, and made the **cumulative flowering-season deficit** the primary feature: the **SPI-3 accumulation over Sep–Nov** (Brazil Arabica flowering window), evaluated on the **annual crop-year frame** against forward-12m Arabica price. Result: **r=+0.483 (p=0.069, n=15)**, up from the old raw-mm annual baseline of +0.398.
+- **Redefined the L3 gate** from monthly `r ≥ +0.12` to annual `r(flowering SPI-3 deficit, fwd-12m) ≥ +0.30` (a *confirming*-signal bar, since L3 amplifies rather than times). The old monthly lens diluted a signal concentrated in one 3-month window per year — same class of frame error corrected earlier for L2b (ENSO) and L2a (S/U). Upgrades L3 from "narrow FAIL" to a validated confirming amplifier.
+- `notebooks/coffee_backtests/05_chirps_signal.ipynb` — full rebuild. Added: gamma-fit `spi_from_gamma` with zero-precip correction; SPI-3 and monthly-SPI-deficit variants; asymmetric **deficit** form `max(0, −SPI3)` (beats signed SPI −0.412 → captures one-sided drought tail risk); **tercile event study** (driest vs wettest flowering third → +33.6% vs +9.5% fwd-12m); and two robustness controls — an **expanding-window SPI** with no look-ahead (r=+0.494, n=9) and a **partial correlation controlling for stocks-to-use** (r=+0.48, ≈ unchanged → drought signal is independent of the supply balance). Notebook now falls back to the cached raw-precip CSV when GEE auth is absent, so it is reproducible without credentials.
+- `notebooks/coffee_backtests/README.md`, `docs/FILE_MAP.md` — updated the L3 gate row and status; added a rank-order caveat (L3's annual r is not frame-comparable to the monthly L1/L2 r values — reconcile in the composite notebook).
+
+### Deferred (documented in notebook §10, out of scope for an L3 single-signal backtest)
+- Global climate sub-score (L3 + ENSO + Vietnam monsoon) with weights → composite notebook 06; Vietnam monsoon is a separate robusta data source.
+- New-crop (U/Z) futures contract as the target → needs paid contract-level ICE/CHRIS data; using continuous `KC=F` as the proxy (logged as a known limitation).
+- Granger causality → n=15 crop years is too small; the lag sweep / CCF is the honest substitute at this sample size.
+- Forward-cover ratio, OTM call-option timing, buy-zone / risk-limit rules → product/recommendation layer (Phase 5–6); they consume the validated signal, they don't validate it.
 
 ---
 

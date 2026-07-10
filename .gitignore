@@ -10,3 +10,7 @@ dist/
 node_modules/
 .earthengine/
 notebooks/**/.ipynb_checkpoints/
+
+# Generated notebook figures — regenerable, and already embedded inline in the executed .ipynb.
+# The cached source CSVs in the same folders are intentionally kept tracked (reproducibility).
+notebooks/**/data/*.png

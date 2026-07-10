@@ -121,7 +121,7 @@ Price position drives timing. Supply/climate signals amplify conviction when the
 | L1 | 52-week price position | ICE KC=F / Yahoo Finance `KC=F` | +0.64 (contemp) | **+0.852 (contemp); +0.201 @ 24m fwd** ✅ |
 | L2a | Stocks-to-use % | USDA PSD (`apps.fas.usda.gov/psdonline`) | −0.35 | **YoY-change metric −0.04 (FAIL); but price level −0.40, annual −0.56, −0.59 @ 23m** — strong fundamental; YoY is wrong lens for an annual stock var, redefine gate to price level (cf. L1) |
 | L2b | ENSO ONI, ~14m **lead** (El Niño) | NOAA CPC (`cpc.ncep.noaa.gov/data/indices/oni.ascii.txt`) | −0.30 | **+0.288 @ 15m lead vs fwd YoY (PASS); +0.327 @ 15m on WB 2000–24, p=1.4e-8** — original "La Niña drought" thesis had sign **and** lag backwards; corrected to El Niño supply-risk amplifier (see below) |
-| L3 | Brazil CHIRPS rainfall (Minas Gerais) | Google Earth Engine or `data.chc.ucsb.edu` | +0.21 | **+0.10 monthly @ 14m lag (narrow FAIL); drought_risk +0.11; annual flowering-dryness vs fwd 12m price +0.40 (n=15, p=0.14)** — right sign/lag/mechanism, underpowered; keep as low-weight flowering amplifier |
+| L3 | Brazil CHIRPS rainfall (Minas Gerais) | Google Earth Engine or `data.chc.ucsb.edu` | +0.21 | **SPI rebuild: annual r(flowering SPI-3 Sep–Nov deficit, fwd-12m price) = +0.483 (p=0.069, n=15) → PASSES redefined gate ≥ +0.30.** Deficit `max(0,−SPI3)` beats signed SPI (−0.412, asymmetric tail risk); robust to look-ahead (expanding r=+0.494) & to stocks control (partial r=+0.48). Old monthly r≥+0.12 lens diluted an annual signal. Low-to-mid-weight confirming amplifier |
 | L5 | COT speculative net (contrarian) | CFTC disaggregated report (`cftc.gov`) | +0.15 | **−0.05 @ fwd 12m (FAIL)** — contrarian thesis inverted; managed money trend-follows, r(index)=+0.14 @ fwd 3–6m; revise to momentum-confirmation role or drop |
 
 **L1 r clarification:** The Phase 0 r = +0.64 was the *contemporaneous* `r(price_pos_52w, trailing_12m_yoy)` — not a forward-predictive r. Real data confirms it at +0.852. Forward predictive r peaks at 24m (r = +0.20, p < 0.01) — arabica trends for ~12m then mean-reverts over 24m.
@@ -248,14 +248,16 @@ Signal output should be actionable in under 2 minutes. The product serves the Th
 **L5 (COT) — backtested on real data, FAILS its original gate:**
 - L5: −0.05 @ fwd 12m (gate ≥ +0.08); contrarian thesis inverted — managed money trend-follows in coffee, r(COT index, fwd 3–6m) = +0.14; revise to a low-weight momentum-confirmation role or drop. Revisit `cot_contrarian_signal` sign/threshold before composite wiring.
 
-**L3 (CHIRPS) — backtested on real data (GEE); narrow FAIL, mechanistically sound (notebook 05):**
-- Best monthly r(dryness, fwd YoY) = +0.10 @ 14m lag (gate ≥ +0.12); drought_risk form +0.11. Annual flowering-season dryness vs next-12m price = +0.40 (n=15, p=0.14) — right sign, right ~14m lag (flowering→harvest→price), underpowered.
-- Keep as a **low-weight flowering-season amplifier** via `drought_risk_score`; too weak/underpowered to time on alone. Consider a flowering-window-only feature as more crop years accrue.
+**L3 (CHIRPS) — SPI rebuild; now PASSES a redefined confirming-signal gate (notebook 05):**
+- Rebuilt around **SPI** (gamma-fit Standardized Precipitation Index) instead of the raw mm anomaly. Primary feature = **flowering SPI-3 deficit** (Sep–Nov accumulation ending Nov, `max(0,−SPI3)`), evaluated on the **annual crop-year frame** vs forward-12m Arabica price: **r=+0.483 (p=0.069, n=15)**, up from the old raw-mm annual +0.398.
+- The old gate (monthly r ≥ +0.12) was the wrong frame — a plain monthly Pearson dilutes a signal concentrated in one 3-month window per year (same class of frame error fixed for L2b/L2a). **Redefined gate: annual r ≥ +0.30 (confirming signal) → PASS.**
+- Signal is **asymmetric** (deficit form beats signed SPI −0.412 → drought is a one-sided tail risk), **robust to look-ahead** (expanding-window SPI r=+0.494, n=9), and **independent of the supply balance** (partial r controlling for stocks-to-use = +0.48). Tercile study: driest vs wettest flowering third → +33.6% vs +9.5% fwd-12m.
+- Remains a **low-to-mid-weight confirming amplifier** (explains *why* a buy window opens: "Minas Gerais flowering was dry"), not a standalone timing signal — L1/L2 drive timing. **When wiring the composite, promote the SPI flowering-deficit feature into `climate_features.py`** (replacing the provisional mm-anomaly `drought_risk_score` in `chirps.py`) and feed it as a continuous z-score, not a 0/1 flag.
 
 **All 5 sources now implemented and backtested on real data.** Composite (notebook 06) is the remaining validation:
-- Full 5-signal composite: **4.54% forward prescience** (Phase 0 synthetic) — must be re-run now that L1, L2a (on price level) and **L2b (on the ~14m El Niño lead)** clear their gates; L3/L5 remain weak amplifiers. Reweighting likely needed.
+- Full 5-signal composite: **4.54% forward prescience** (Phase 0 synthetic) — must be re-run now that L1, L2a (on price level), **L2b (on the ~14m El Niño lead)** and **L3 (SPI flowering deficit, confirming)** clear their gates; only L5 remains a failed/weak signal. Reweighting likely needed.
 - Spike avoidance (2024 Arabica +110%): 200 kg/month roaster saved ~$3,000 in one quarter
-- Real-data rank order is broadly L1 ≈ L2a > L2b > {L3, L5}; confirm in the composite before product work
+- Real-data rank order is broadly L1 ≈ L2a > L2b > L3 > L5, **but L3's r is on the annual frame** (not directly comparable to the monthly signals) — do the apples-to-apples reconciliation in the composite before product work
 
 **Nasdaq Data Link CHRIS access:** CHRIS futures database requires a paid subscription. Production `ice_coffee_c.py` targets `CHRIS/ICE_KC1`; backtests use Yahoo Finance `KC=F` (same instrument). Activate paid plan before deploying the production ingestion job.
 
@@ -266,6 +268,6 @@ Signal output should be actionable in under 2 minutes. The product serves the Th
 1. ✅ Real data pipelines for L1 (ICE KC), L2b (ENSO), L5 (COT) — no GEE needed
 2. ✅ Add USDA PSD (L2a) from bulk CSV
 3. ✅ Add CHIRPS (L3) via GEE (project `western-plate-432020-t5`)
-4. ← **NEXT:** Rebuild Phase 0 composite backtest (notebook 06) on real data — confirm rank order and reweight (only L1 + L2a-on-level clear their gates; L2b/L3/L5 are weak amplifiers)
+4. ← **NEXT:** Rebuild Phase 0 composite backtest (notebook 06) on real data — confirm rank order and reweight. L1, L2a-on-level, L2b (~14m El Niño lead) and L3 (SPI flowering deficit) clear their gates; L3 is a confirming amplifier; L5 is the lone failed signal (decide role or drop)
 5. FastAPI layer with core route structure
 6. React frontend: signal cards, price chart, margin calculator
