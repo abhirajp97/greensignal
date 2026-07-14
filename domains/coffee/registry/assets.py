@@ -140,6 +140,30 @@ USDA_STU = Asset(
     },
 )
 
+USDA_STU_VINTAGE = Asset(
+    asset_id="coffee:supply:world_stu_vintage",
+    domain="coffee",
+    asset_type="supply_signal",
+    name="USDA Coffee: World Markets and Trade — World Stocks-to-Use % (vintage-dated)",
+    unit="percent",
+    metadata={
+        "source": (
+            "USDA Foreign Agricultural Service — Coffee: World Markets and "
+            "Trade (semiannual circular)"
+        ),
+        "url": "https://esmis.nal.usda.gov/publication/coffee-world-markets-and-trade",
+        "description": (
+            "World coffee ending stocks as a percent of domestic consumption, "
+            "computed from the 'Total' Ending Stocks and 'Total' Domestic "
+            "Consumption rows of each semiannual (Jun/Dec) WMT circular. Unlike "
+            "USDA_STU (the PSD bulk file, always the latest-revised vintage), "
+            "each observation here is dated to the report's own publication "
+            "date and uses only that report's own newest-column estimate — a "
+            "genuinely point-in-time (vintage-aware) series with no look-ahead."
+        ),
+    },
+)
+
 CHIRPS_MINAS = Asset(
     asset_id="climate:chirps:minas_gerais",
     domain="coffee",
@@ -171,5 +195,6 @@ ALL_ASSETS: list[Asset] = [
     ENSO_ONI,
     COT_KC,
     USDA_STU,
+    USDA_STU_VINTAGE,
     CHIRPS_MINAS,
 ]

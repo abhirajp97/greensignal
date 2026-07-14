@@ -92,7 +92,7 @@ All models use `pydantic.BaseModel`. These are the objects that flow between eve
 
 | File | What it does | Status |
 |------|-------------|--------|
-| `assets.py` | Declares tracked assets as constants: origins (`BRAZIL_ARABICA`, `COLOMBIA_ARABICA`, `ETHIOPIA_ARABICA`, `VIETNAM_ROBUSTA`), benchmarks (`ICE_ARABICA_BENCHMARK`, `WB_ARABICA_BENCHMARK`, `WB_ROBUSTA_BENCHMARK`), and signals (`ENSO_ONI`, `COT_KC`, `USDA_STU`, `CHIRPS_MINAS`); collected in `ALL_ASSETS` | ✅ Done |
+| `assets.py` | Declares tracked assets as constants: origins (`BRAZIL_ARABICA`, `COLOMBIA_ARABICA`, `ETHIOPIA_ARABICA`, `VIETNAM_ROBUSTA`), benchmarks (`ICE_ARABICA_BENCHMARK`, `WB_ARABICA_BENCHMARK`, `WB_ROBUSTA_BENCHMARK`), and signals (`ENSO_ONI`, `COT_KC`, `USDA_STU`, `USDA_STU_VINTAGE`, `CHIRPS_MINAS`); collected in `ALL_ASSETS` | ✅ Done |
 | `regions.py` | Geographic bounding boxes for CHIRPS extraction: `MINAS_GERAIS`, `VIETNAM_CENTRAL_HIGHLANDS` | ✅ Done |
 
 ### `domains/coffee/sources/` — One file per data source. Each returns `list[MarketObservation]` or `list[FeatureObservation]`.
@@ -103,8 +103,9 @@ All models use `pydantic.BaseModel`. These are the objects that flow between eve
 | `world_bank_commodity.py` | World Bank Pink Sheet — Arabica + Robusta physical prices (free, no auth) | **new** | ✅ Done |
 | `noaa_enso.py` | NOAA CPC ONI fixed-width text (`oni.ascii.txt`) | **2nd** — free, no auth | ✅ Done |
 | `cot.py` | CFTC disaggregated COT report, annual ZIP/CSVs | **3rd** — free, no auth | ✅ Done |
-| `usda_psd.py` | USDA PSD bulk CSV — world stocks-to-use % (free, no auth) | **4th** — free, no auth | ✅ Done |
+| `usda_psd.py` | USDA PSD bulk CSV — world stocks-to-use % (free, no auth); always latest-revised vintage, look-ahead risk for backtests — see `usda_coffee_wmt.py` | **4th** — free, no auth | ✅ Done |
 | `chirps.py` | CHIRPS via Google Earth Engine (Minas Gerais GAUL polygon); NetCDF fallback | **5th** | ✅ Done |
+| `usda_coffee_wmt.py` | USDA "Coffee: World Markets and Trade" semiannual PDF circular (`esmis.nal.usda.gov`, free, no auth) — true vintage-dated world stocks-to-use %, fixes `usda_psd.py`'s look-ahead bias. Not WASDE (WASDE doesn't cover coffee). Deps: `pdfplumber`, `beautifulsoup4` | **6th** — free, no auth | ✅ Done |
 
 ### `domains/coffee/features/` — Signal computation from raw DataFrames
 
@@ -159,7 +160,7 @@ Empty — React + Vite scaffold deferred until data pipeline and signal are vali
 | `coffee_backtests/07_wb_physical_prices.ipynb` | WB Arabica & Robusta L1 gates + basis analysis vs KC=F | ✅ Done (Arabica r=+0.835, Robusta r=+0.748, all gates PASS) |
 | `coffee_backtests/02_enso_signal.ipynb` | L2b: NOAA ONI backtest, corrected El Niño thesis; gate PASSES — r=+0.288 @15m lead (KC), +0.327 @15m (WB 2000–24, p=1.4e-8); event study El Niño→+36.5% fwd-12m vs La Niña −1.7%. Original sign+lag were backwards | ✅ Done |
 | `coffee_backtests/03_cot_signal.ipynb` | L5: CFTC COT backtest; gate FAILS (contrarian r=−0.05 @ fwd 12m); contrarian thesis inverted — managed money trend-follows (r=+0.14 @ fwd 3–6m); recommend revising L5 role or dropping | ✅ Done |
-| `coffee_backtests/04_usda_supply_signal.ipynb` | L2a: USDA world stocks-to-use backtest, **vintage-lag rebuild** — fixes look-ahead bias (PSD bulk file is latest-revised vintage; series shifted 12m forward to simulate publication lag). Redefined dual gate PASSES: Gate 1 r(vintage S/U, 12m-fwd price)=−0.312, Gate 2 r(S/U delta, price level)=−0.259. Adds 10yr rolling z-score, YoY delta, months-of-consumption features and a z-score-based non-linear stress score. WASDE true-vintage series deferred (notebook §14) | ✅ Done |
+| `coffee_backtests/04_usda_supply_signal.ipynb` | L2a: USDA world stocks-to-use backtest, **vintage rebuild** — fixes look-ahead bias two ways: (1) a practical 12m-forward shift of the PSD bulk file (monthly cadence, fallback), (2) the true fix via the new `usda_coffee_wmt.py` source (semiannual, no approximation). Redefined dual gate PASSES on both: approximation Gate1 r=−0.312/Gate2 r=−0.259 (n=180); true vintage Gate1 r=−0.488 (n=30, *stronger*)/Gate2 r=−0.261 (n=29, not significant). Adds 10yr rolling z-score, YoY delta, months-of-consumption features and a z-score-based non-linear stress score | ✅ Done |
 | `coffee_backtests/05_chirps_signal.ipynb` | L3: CHIRPS Minas Gerais drought backtest, **SPI rebuild**. Flowering SPI-3 (Sep–Nov) deficit vs fwd-12m price r=+0.483 (p=0.069, n=15) — PASSES redefined confirming-signal gate (≥+0.30); deficit form beats signed SPI (asymmetric); robust to look-ahead (expanding r=+0.494) and to stocks control (partial r=+0.48). Low-to-mid-weight confirming amplifier | ✅ Working |
 | `coffee_backtests/06_composite_backtest.ipynb` | Full composite: all signals combined, measure forward prescience | 🔲 Not created |
 | `coffee_data_validation/` | Exploratory data quality checks as each new source is pulled | 🔲 Empty |
