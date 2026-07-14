@@ -9,10 +9,31 @@ Versions are dated. Each entry covers what changed, why it matters, and who did 
 ## [Unreleased]
 
 Planned but not yet merged to `main`:
-- Composite backtest (notebook 06) on real data — reweight now that L1, L2a (on level), L2b (~14m El Niño lead) and L3 (SPI flowering deficit) clear their gates
-- Redefine the L2a gate to price-level correlation (cf. L1)
+- Composite backtest (notebook 06) on real data — reweight now that L1, L2a (vintage-lagged, on level), L2b (~14m El Niño lead) and L3 (SPI flowering deficit) clear their gates
 - Decide L5 composite role (momentum-confirmation vs drop)
 - Promote the validated SPI flowering-deficit feature from notebook 05 into `domains/coffee/features/climate_features.py` (replacing the provisional mm-anomaly `drought_risk_score`)
+- Promote the L2a z-score / stress-score features from notebook 04 into `domains/coffee/features/supply_features.py` (currently a stub) when wiring the composite
+- Build a genuinely vintage-aware USDA PSD series from historical monthly WASDE reports — the notebook 04 rebuild uses a practical 12-month shift, not a literal point-in-time archive (see notebook §14)
+
+---
+
+## [0.17.0] — 2026-07-13
+
+### Changed
+- **Rebuilt the L2a USDA stocks-to-use signal around a vintage-lag correction — fixes a look-ahead bias in the prior backtest.** The USDA PSD bulk CSV is always the *latest revised* vintage of every marketing year; the original notebook 04 correlated that fully-revised number against the price from the year it describes, which a roaster could not have known in real time. Fixed by shifting the monthly forward-filled S/U series forward 12 months (tested 6m as a sensitivity check) before correlating with price, simulating the real publication lag. Raw r(S/U, price level) = −0.40 weakens to −0.26 once the lag is applied — expected, and the honest number.
+- **Redefined the L2a gate into two tests, both on the vintage-lagged series, both PASS on real data:** Gate 1 `r(vintage S/U, 12m-forward price level) ≤ −0.25` → **r=−0.312** (p=2.0e-5, n=180); Gate 2 `r(S/U YoY delta, contemporaneous price level) ≤ −0.20` → **r=−0.259** (p=4.6e-4, n=180). Replaces the old single YoY-change gate (r=−0.04, FAIL) that was the wrong lens for a slow annual step-function variable.
+- **Added three new features**, all computed on the annual series to avoid diluting an annual signal (same class of fix already applied to L2b/L3): a **10-year rolling z-score** (uses only the prior 10 years' mean/std, so it introduces no additional look-ahead beyond the vintage lag), a **YoY delta** (`stu[t] − stu[t-1]`, the "shock" dimension), and **months of consumption** (`S/U% / 100 × 12`, a roaster-legible reframing).
+- **Replaced the linear 12%/35% clamp with a z-score-based non-linear stress score** (`stress = clamp((−z + 2) / 4, 0, 1)`), self-calibrating against the series' own 10-year history rather than fixed percent bounds. Latest read (2025): Z=−1.96, stress=0.99 — a once-in-a-generation tight buffer, 1.4 months of consumption in storage.
+- `notebooks/coffee_backtests/04_usda_supply_signal.ipynb` — full rebuild: vintage-lag section with raw-vs-lagged comparison table, feature engineering, dual gates, correlation matrix, rolling stability (honest but modest: 52% of 3yr windows negative, up from 23% on the old YoY basis — the full-sample gates are the stronger evidence), z-score stress score with a descriptive Z<-1/Z>+1 decision rule, and a deferred-work section on building a true WASDE-vintage series.
+- `notebooks/coffee_backtests/README.md`, `docs/FILE_MAP.md` — updated the L2a gate row/status to the new dual-gate PASS result.
+- Untracked `notebooks/coffee_backtests/data/04_*.png` (regenerable, already embedded inline in the executed notebook), consistent with the nb05 figure-untracking policy from [0.16.0].
+
+### Not done (explicitly deferred, see notebook §14)
+- A genuinely vintage-aware S/U series built from historical monthly WASDE reports. The 12-month shift is a practical approximation of the publication lag, not a literal point-in-time reconstruction. Building the real thing means parsing ~25 years of monthly WASDE PDF/HTML reports as a new data source (own `implement-source` pass + reviewer sign-off) — worth doing only if L2a's composite weight (notebook 06) turns out to be sensitive to the extra precision.
+- `stu_z_score` / `stu_stress_score` were **not** promoted into `domains/coffee/features/supply_features.py` (still a stub) or `usda_psd.py`. Per the nb05/L3 precedent, new backtest-validated features stay notebook-local until the composite (notebook 06) actually wires them in.
+
+### Why it matters
+The prior L2a result (r=−0.40 to −0.59 depending on lag) was contaminated by look-ahead — a roaster reading this signal in real time would not have had the revised numbers the backtest used. The vintage-lagged, dual-gate result (r=−0.26 to −0.31) is weaker but honest, and still clears both redefined thresholds, so L2a remains a validated fundamental for the composite — just a noisier one than the original notebook implied.
 
 ---
 

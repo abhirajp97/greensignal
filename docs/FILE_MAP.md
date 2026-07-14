@@ -111,7 +111,7 @@ All models use `pydantic.BaseModel`. These are the objects that flow between eve
 | File | What it computes | Status |
 |------|-----------------|--------|
 | `price_features.py` | `price_position_52w` (0–1), `yoy_price_change`, `price_momentum_12m` (context only — not a buy signal) | ✅ Done |
-| `supply_features.py` | `stu_risk_score` (STU % → 0–1 risk), `supply_regime` label | 🔲 Stub |
+| `supply_features.py` | `stu_risk_score` (STU % → 0–1 risk), `supply_regime` label. Notebook 04 validated a z-score-based stress score (`stu_z_score`, `stu_stress`) as the successor to the linear clamp — not yet promoted here, pending composite wiring (06) | 🔲 Stub |
 | `climate_features.py` | `enso_lagged` (~14m shift, El Niño lead), `climate_risk_score` (weighted sub-signal combination) | 🔲 Stub |
 | `margin_features.py` | `roaster_margin`, `forward_buy_saving` — dollar-impact numbers for roasters | 🔲 Stub |
 
@@ -159,7 +159,7 @@ Empty — React + Vite scaffold deferred until data pipeline and signal are vali
 | `coffee_backtests/07_wb_physical_prices.ipynb` | WB Arabica & Robusta L1 gates + basis analysis vs KC=F | ✅ Done (Arabica r=+0.835, Robusta r=+0.748, all gates PASS) |
 | `coffee_backtests/02_enso_signal.ipynb` | L2b: NOAA ONI backtest, corrected El Niño thesis; gate PASSES — r=+0.288 @15m lead (KC), +0.327 @15m (WB 2000–24, p=1.4e-8); event study El Niño→+36.5% fwd-12m vs La Niña −1.7%. Original sign+lag were backwards | ✅ Done |
 | `coffee_backtests/03_cot_signal.ipynb` | L5: CFTC COT backtest; gate FAILS (contrarian r=−0.05 @ fwd 12m); contrarian thesis inverted — managed money trend-follows (r=+0.14 @ fwd 3–6m); recommend revising L5 role or dropping | ✅ Done |
-| `coffee_backtests/04_usda_supply_signal.ipynb` | L2a: USDA world stocks-to-use backtest; YoY-change gate FAILS (r=−0.04) but signal strong on price level (r=−0.40 monthly, −0.56 annual, −0.59 @ 23m lag); recommend redefining L2a gate to price level (cf. L1) | ✅ Done |
+| `coffee_backtests/04_usda_supply_signal.ipynb` | L2a: USDA world stocks-to-use backtest, **vintage-lag rebuild** — fixes look-ahead bias (PSD bulk file is latest-revised vintage; series shifted 12m forward to simulate publication lag). Redefined dual gate PASSES: Gate 1 r(vintage S/U, 12m-fwd price)=−0.312, Gate 2 r(S/U delta, price level)=−0.259. Adds 10yr rolling z-score, YoY delta, months-of-consumption features and a z-score-based non-linear stress score. WASDE true-vintage series deferred (notebook §14) | ✅ Done |
 | `coffee_backtests/05_chirps_signal.ipynb` | L3: CHIRPS Minas Gerais drought backtest, **SPI rebuild**. Flowering SPI-3 (Sep–Nov) deficit vs fwd-12m price r=+0.483 (p=0.069, n=15) — PASSES redefined confirming-signal gate (≥+0.30); deficit form beats signed SPI (asymmetric); robust to look-ahead (expanding r=+0.494) and to stocks control (partial r=+0.48). Low-to-mid-weight confirming amplifier | ✅ Working |
 | `coffee_backtests/06_composite_backtest.ipynb` | Full composite: all signals combined, measure forward prescience | 🔲 Not created |
 | `coffee_data_validation/` | Exploratory data quality checks as each new source is pulled | 🔲 Empty |
