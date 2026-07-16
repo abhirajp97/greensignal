@@ -9,12 +9,27 @@ Versions are dated. Each entry covers what changed, why it matters, and who did 
 ## [Unreleased]
 
 Planned but not yet merged to `main`:
-- Composite backtest (notebook 06) on real data — reweight now that L1, L2a (true vintage, dual gate), L2b (~14m El Niño lead) and L3 (SPI flowering deficit) clear their gates
-- Decide L5 composite role (momentum-confirmation vs drop)
+- Rebuild `stu_stress` (L2a's composite input) off the true-vintage series instead of the PSD-approximation series, then re-run notebook 06's L2a ablation
+- Production wiring: `build_recommendation`, `climate_risk_score` weights, `risk_scorer.py`, promote `stu_risk_score` / `enso_lagged` / the SPI drought score into production feature files
 - Promote the validated SPI flowering-deficit feature from notebook 05 into `domains/coffee/features/climate_features.py` (replacing the provisional mm-anomaly `drought_risk_score`)
-- Promote the L2a z-score / stress-score features and the `usda_coffee_wmt.py` true-vintage series from notebook 04 into `domains/coffee/features/supply_features.py` (currently a stub) when wiring the composite
 - Extend `usda_coffee_wmt.py` coverage before June 2010 (older circulars use a different/unparseable format) — low priority, only if the composite shows L2a's weight is sensitive to it
-- Wire `usda_coffee_wmt.fetch()` into a scheduled job (`jobs/coffee/monthly_supply.py`, still a stub) for production ingestion
+- Independent engineering work: `core/storage/repositories.py` + job wiring (`jobs/coffee/*.py`, all still stubs — nothing is currently persisted), `margin_features.py`
+
+---
+
+## [0.19.0] — 2026-07-13
+
+### Added
+- **`notebooks/coffee_backtests/06_composite_backtest.ipynb` — the full composite backtest, combining all 5 real-data-validated signals.** Aligns L1/L2a/L2b/L3/L5 onto one honest monthly frame (reusing notebook 04's step-function forward-fill pattern for L2a's semiannual true-vintage series and L3's annual SPI flowering-deficit feature — L1, L2b, and L5 were confirmed to already land on monthly cadence natively, verified directly in each notebook's own code rather than assumed). Derives composite weights via **r-proportional reweighting** (each sub-signal's weight ∝ its own `|r|` against forward return, measured within the shared aligned frame) as the primary scheme, compared against the unchanged Phase 0 synthetic weights and a non-negative Ridge regression ceiling check (implemented via `scipy.optimize.nnls` on an augmented design matrix rather than adding scikit-learn as a new dependency for one comparison cell).
+- **Gate PASSES** (walk-forward forward prescience ≥3.50%) on both weight schemes: Phase 0 fixed weights +9.31%, r-proportional reweighting +3.62%. Full-history in-sample screening (before walk-forward) was more moderate: Phase 0 +4.44%, r-proportional +4.73%, Ridge ceiling check +4.10% (didn't beat the simpler scheme). **Reported honestly alongside the PASS: the walk-forward result rests on a thin sample** — only 11 (Phase 0) / 21 (r-proportional) buy-months total across the 10 test years (2015–2024), with 3–4 of those years classifying zero buy months. Treat as directional validation of the composite approach, not a final precise weight assignment.
+- **Generalized leave-one-out ablation** (not just an L5 question, per the same "does this borderline signal actually help" scrutiny that applies to L3): dropping L2b costs −3.00pp (by far the strongest individual contributor); dropping L5 costs −0.81pp (helps — empirically validates notebook 03's "low-weight momentum amplifier" role rather than assuming it); dropping L3 costs only −0.22pp (near-neutral, consistent with its confirming-amplifier framing); dropping L2a *improves* the number by +1.06pp — traced to a specific cause rather than left unexplained: the `stu_stress` input reused here comes from the PSD-approximation series, not the stronger true-vintage series validated in notebook 04.
+- Added missing `Save Reference CSV` cells to notebooks 01 and 03 (the only two of the five still missing this, discovered while assembling notebook 06's inputs) and re-executed both. `cot_monthly.csv` on disk before this fix predated notebook 03's momentum-thesis rebuild and still had contrarian-era columns — would have silently fed stale data into the composite if reused as-is.
+
+### Fixed
+- **Corrected stale L5 (COT) documentation across the repo.** `CLAUDE.md` (2 places), `docs/NEXT_STEPS.md`, `docs/FILE_MAP.md`, and `notebooks/coffee_backtests/README.md` all still described L5 as failing its original contrarian gate (r=−0.05 @ fwd 12m). That description was stale: `notebooks/coffee_backtests/03_cot_signal.ipynb` was already rebuilt around the momentum thesis in an earlier session (`88af1e9`, merged via PR #4, before this work started) and its actual current result is a PASS — r(COT index, fwd 6m) = +0.144 (p=0.053, n=180). Caught while verifying claims before planning notebook 06, rather than propagating the stale docs into new planning. Corrected to the real, current state: momentum gate passes but is weak and borderline (p at the edge of significance, 3yr rolling stability only 45% positive, walk-forward $ savings don't materialize) — a low-weight composite amplifier, not a failed signal.
+
+### Why it matters
+This is the last real-data validation gate before product work begins — all 5 signals now individually validated (notebooks 01–05) and combined (notebook 06), with the composite passing its gate. The two "not done yet" items that matter most before committing final weights: rebuilding L2a's stress-score input off the stronger true-vintage series (its current ablation result is misleading), and running the full walk-forward test on a larger sample as more real-world data accumulates (the current pass is directional, not a precise final number).
 
 ---
 

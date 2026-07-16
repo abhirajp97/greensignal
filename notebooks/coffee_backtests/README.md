@@ -22,17 +22,21 @@ rank order should be re-examined before proceeding.
 | L2a — stocks-to-use % | **Redefined, true-vintage, dual gate:** Gate 1 r(vintage S/U, 12m-fwd price level) / Gate 2 r(S/U delta, price level) | −0.35 | Gate 1 ≤ −0.25 / Gate 2 ≤ −0.20 | ✅ PASS both, on both series. **True vintage** (`usda_coffee_wmt.py`, semiannual, no approximation): Gate 1 r=−0.488 (p=6.2e-3, n=30) — *stronger* than the approximation; Gate 2 r=−0.261 (p=0.17, passes threshold, not significant at this n). **Approximation** (12m shift of the always-latest-revised PSD bulk file, monthly, kept as fallback): Gate 1 r=−0.312 (p=2.0e-5, n=180), Gate 2 r=−0.259 (p=4.6e-4, n=180). Old single YoY-change gate (r=−0.04) FAILED — wrong lens for an annual stock var |
 | L2b — ENSO ONI ~14m lead | Pearson r vs **fwd** YoY price change (gate redefined: positive, El Niño) | −0.30 | ≥ +0.20 in 10–18m band | ✅ PASS r=+0.288 @ 15m (KC, p=1.6e-4) / +0.327 @ 15m (WB 2000–24, p=1.4e-8); event study: El Niño months → +36.5% fwd-12m vs La Niña −1.7% (t=5.83, p<0.001). Original sign+lag were backwards — see notebook §intro |
 | L3 — Brazil CHIRPS drought | **Redefined:** annual r(flowering SPI-3 deficit, fwd-12m price) | +0.21 | ≥ +0.30 (confirming signal) | ✅ PASS: r=+0.483 (p=0.069, n=15) after the **SPI rebuild**. Old monthly r≥+0.12 lens diluted an annual once-a-year signal (see notebook §intro). Deficit `max(0,−SPI3)` beats signed SPI (−0.412) → asymmetric tail risk; robust to look-ahead (expanding-window r=+0.494) and to a stocks-to-use control (partial r=+0.48); driest vs wettest flowering third → +33.6% vs +9.5% fwd-12m. Confirming amplifier, not a standalone timing signal |
-| L5 — COT contrarian | Pearson r vs YoY price change | +0.15 | ≥ +0.08 | ❌ r=−0.05 @ fwd 12m (FAIL); contrarian thesis inverted — specs trend-follow, r(index)=+0.14 @ fwd 3–6m |
-| Full composite | Forward 3–6m prescience after BUY | 4.54% | ≥ 3.50% | ⬜ pending |
-| Spike avoidance | Cost saving, 200 kg/mo roaster, 2024 rally | ~$3,000 | Confirm directionally | ⬜ pending |
+| L5 — COT momentum | **Redefined:** Pearson r vs fwd 6m price change (original contrarian gate vs YoY @ 12m FAILED, r=−0.05) | +0.15 | ≥ +0.08 | ✅ PASS: r=+0.144 (p=0.053, n=180) after the **momentum rebuild** — specs trend-follow, not fade. Weak/borderline: p at the edge of significance, 3yr rolling stability only 45% positive; walk-forward $ savings don't materialize (momentum ≠ contrarian purchase-price economics). Low-weight composite amplifier, not a standalone timing signal |
+| Full composite | Forward 3–6m prescience after BUY, walk-forward | 4.54% | ≥ 3.50% | ✅ PASS (both weight schemes) — Phase 0 weights +9.31%, r-proportional (real-data reweighting) +3.62%, both ≥3.50%. **Caveat: thin sample** — only 11 (Phase 0) / 21 (r-prop) buy-months across the 10 walk-forward test years (2015–2024), 3–4 of which have *zero* buy months; full-history in-sample screening was a more moderate +4.44%/+4.73%. Treat as directional validation, not a precise final number — see notebook §5-6 |
+| Spike avoidance | Cost saving, 200 kg/mo roaster, 2024 rally | ~$3,000 | Confirm directionally | ⬜ not directly re-tested in notebook 06 (composite focused on prescience gate + ablation) |
 
 **Signal rank order must be preserved:** L1 > L2a > L2b > L3 > L5 by absolute r value.
 If this order breaks on real data, reweight the composite before building the product.
 **Caveat (post-rebuild):** L3's headline r=+0.483 is on the *annual crop-year* frame (n=15),
 which is not directly comparable to the *monthly* frames used for L1/L2a/L2b. L3 remains a
-low-to-mid-weight **confirming** amplifier, not a timing signal — do the apples-to-apples
-rank reconciliation and reweighting in the composite notebook (06), not by comparing these
-frame-mismatched r values.
+low-to-mid-weight **confirming** amplifier, not a timing signal.
+**Composite ablation (notebook 06, full-history):** L2b is by far the strongest marginal
+contributor (dropping it costs −3.00pp); L5 helps modestly (dropping it costs −0.81pp,
+confirming its momentum-amplifier role); L3 is close to neutral (−0.22pp); L2a's ablation
+result was counterintuitive (dropping it *improved* the number by +1.06pp) — traced to
+`stu_stress` being built off the PSD-approximation series rather than the stronger
+true-vintage series; rebuild that input before finalizing L2a's composite weight.
 
 ## Data period
 
