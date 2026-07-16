@@ -49,5 +49,7 @@ Buffer period needed for lags: ~2009 data required for ENSO ~14m lead alignment.
 | `04_usda_supply_signal.ipynb` | L2a: parse USDA PSD bulk CSV, compute STU, validate r |
 | `05_chirps_signal.ipynb` | L3: extract Minas Gerais rainfall, validate r (requires GEE) |
 | `06_composite_backtest.ipynb` | Full composite: combine all signals, measure forward prescience |
+| `07_wb_physical_prices.ipynb` | L1 on World Bank Arabica/Robusta physical prices + basis vs KC=F |
+| `08_producer_fx_signal.ipynb` | Producer FX PoC (USD/BRL → KC): G1 PASS (monthly r=−0.316); G2/G3 FAIL — co-moves, not an exploitable timing lead after DXY/KC controls |
 
 Work through these in order — the first three use data that needs no GEE approval.
