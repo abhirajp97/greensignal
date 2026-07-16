@@ -74,6 +74,22 @@ The prior L2a result (r=−0.40 to −0.59 depending on lag) was contaminated by
 
 ---
 
+## [0.17.0] — 2026-07-15
+
+### Added
+- `notebooks/coffee_backtests/08_producer_fx_signal.ipynb` — producer FX proof-of-concept (primarily USD/BRL → ICE KC). Tests whether producer-country FX carries exploitable predictive information for Arabica at 1w–12m horizons, with DXY and KC-momentum controls, walk-forward OOS, and a multi-origin FX index generalization.
+
+### Findings (notebook 08 — producer FX, core 2010–2024)
+- **G1 PASS:** monthly contemporaneous `r(Δlog USDBRL, Δlog KC) = −0.316` (threshold ≤ −0.20)
+- **G2 FAIL:** zero controlled survivors (β < 0, HAC p < 0.05 after DXY + KC momentum) — no adjacent predictive cluster
+- **G3 FAIL:** walk-forward deferral saving −0.14% (need ≥ +1.0%); 01-comparable level metric −2.19%
+- **Conclusion:** BRL/KC co-movement is real but not an exploitable *timing* lead at these horizons after controls — better framed as a conditioning/regime variable than a composite timing input. Multi-origin FX index did not clearly beat BRL alone.
+
+### Changed
+- `notebooks/coffee_backtests/README.md`, `docs/FILE_MAP.md`, `docs/NEXT_STEPS.md` — registered notebook 08 and recorded gate outcomes
+
+---
+
 ## [0.16.0] — 2026-07-02
 
 ### Changed
