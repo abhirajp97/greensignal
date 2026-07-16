@@ -162,6 +162,7 @@ Empty — React + Vite scaffold deferred until data pipeline and signal are vali
 | `coffee_backtests/04_usda_supply_signal.ipynb` | L2a: USDA world stocks-to-use backtest; YoY-change gate FAILS (r=−0.04) but signal strong on price level (r=−0.40 monthly, −0.56 annual, −0.59 @ 23m lag); recommend redefining L2a gate to price level (cf. L1) | ✅ Done |
 | `coffee_backtests/05_chirps_signal.ipynb` | L3: CHIRPS Minas Gerais drought backtest, **SPI rebuild**. Flowering SPI-3 (Sep–Nov) deficit vs fwd-12m price r=+0.483 (p=0.069, n=15) — PASSES redefined confirming-signal gate (≥+0.30); deficit form beats signed SPI (asymmetric); robust to look-ahead (expanding r=+0.494) and to stocks control (partial r=+0.48). Low-to-mid-weight confirming amplifier | ✅ Working |
 | `coffee_backtests/06_composite_backtest.ipynb` | Full composite: all signals combined, measure forward prescience | 🔲 Not created |
+| `coffee_backtests/08_producer_fx_signal.ipynb` | Producer FX PoC (USD/BRL → ICE KC): G1 PASS (monthly r=−0.316); G2/G3 FAIL (no controlled predictive survivors; deferral saving −0.14%). Treat as conditioning/regime variable, not a timing signal | ✅ Done (1/3 gates) |
 | `coffee_data_validation/` | Exploratory data quality checks as each new source is pulled | 🔲 Empty |
 
 ---
