@@ -9,10 +9,53 @@ Versions are dated. Each entry covers what changed, why it matters, and who did 
 ## [Unreleased]
 
 Planned but not yet merged to `main`:
-- Composite backtest (notebook 06) on real data — reweight now that L1, L2a (on level), L2b (~14m El Niño lead) and L3 (SPI flowering deficit) clear their gates
-- Redefine the L2a gate to price-level correlation (cf. L1)
+- Composite backtest (notebook 06) on real data — reweight now that L1, L2a (true vintage, dual gate), L2b (~14m El Niño lead) and L3 (SPI flowering deficit) clear their gates
 - Decide L5 composite role (momentum-confirmation vs drop)
 - Promote the validated SPI flowering-deficit feature from notebook 05 into `domains/coffee/features/climate_features.py` (replacing the provisional mm-anomaly `drought_risk_score`)
+- Promote the L2a z-score / stress-score features and the `usda_coffee_wmt.py` true-vintage series from notebook 04 into `domains/coffee/features/supply_features.py` (currently a stub) when wiring the composite
+- Extend `usda_coffee_wmt.py` coverage before June 2010 (older circulars use a different/unparseable format) — low priority, only if the composite shows L2a's weight is sensitive to it
+- Wire `usda_coffee_wmt.fetch()` into a scheduled job (`jobs/coffee/monthly_supply.py`, still a stub) for production ingestion
+
+---
+
+## [0.18.0] — 2026-07-13
+
+### Added
+- **`domains/coffee/sources/usda_coffee_wmt.py` — a true vintage-aware world stocks-to-use % source, fixing `usda_psd.py`'s look-ahead bias properly instead of approximating it.** [0.17.0] shifted the PSD bulk file forward 12 months to simulate the publication lag USDA's always-latest-revised bulk CSV doesn't reflect. This release replaces the approximation's premise: a review comment suggested parsing USDA's monthly **WASDE** report for a genuine point-in-time archive, but WASDE does not cover coffee at all (confirmed via web search — it's limited to grains, oilseeds, cotton, sugar, and livestock). The correct USDA report for coffee is a separate semiannual (June/December) circular, **"Coffee: World Markets and Trade,"** archived back to June 2004 at `esmis.nal.usda.gov`. Each issue is genuinely time-stamped — it reports the world "Total" Ending Stocks and Domestic Consumption as estimated *at that report's own publication date* — so `usda_coffee_wmt.py` needs no shift/approximation at all.
+- **Archive discovery** paginates the ESMIS listing (`?page=0,1,2,...`) and parses the release table via BeautifulSoup. Caught and fixed a real bug during development: past the actual archive depth, the site does not return an empty page — it loops back to repeating page-0 content — so pagination now stops when a page adds *no new report dates*, not merely when a page is empty (the naive check would have looped `_MAX_LISTING_PAGES` times re-fetching the same page).
+- **PDF parsing** handles 20+ years of format drift (pre-2011 combined "Table 01A"; 2011+ split "Coffee Summary" pages) by anchoring on the literal phrase `"Thousand 60-Kilogram Bags"`, present on every summary-table page and nowhere else — critically, this avoids a false-positive trap where many issues also have a page-1 narrative subsection literally titled "Ending Stocks" (prose, not a table). Within the anchored segment, the parser locates the "Domestic Consumption" and "Ending Stocks" headers and each one's nearest following `"Total <numbers>"` row, taking the last (newest) column.
+- 31 of the 46 discovered historical reports (June 2010 – June 2025) parse successfully; the 15 pre-June-2010 issues use an incompatible/older format and are skipped (logged, `PARTIAL` run) — accepted since the notebook's core backtest window starts in 2010.
+- **Cross-validated independently:** the Dec 2025 report parses to 11.59% world S/U, matching `usda_psd.py`'s separately-computed 11.6% for the same period via a completely different data pipeline.
+- `tests/domains/coffee/test_usda_coffee_wmt.py` — 24 tests: real-format text fixtures for both the pre-2011 combined and 2011+ split table layouts, `_find_summary_segment`/`_section_total` false-positive-trap guards, listing pagination (including the wrap-around-stop fix), and `fetch()` SUCCESS/PARTIAL/FAILED paths — all HTTP and PDF calls mocked. Reviewed via the `data-source-reviewer` agent — **APPROVED**.
+- `domains/coffee/registry/assets.py` — added `USDA_STU_VINTAGE` (`coffee:supply:world_stu_vintage`).
+- New main dependencies: `pdfplumber` (PDF text extraction), `beautifulsoup4` (listing HTML parsing).
+
+### Changed
+- **`notebooks/coffee_backtests/04_usda_supply_signal.ipynb`** — new §11 fetches the true vintage series, aligns its irregular semiannual dates to price via `pd.merge_asof`, and re-runs both gates: **Gate 1 r=−0.488 (p=6.2e-3, n=30) — stronger than the [0.17.0] approximation's −0.312**; Gate 2 r=−0.261 (p=0.17) passes the numeric threshold but isn't statistically significant at this small semiannual sample — reported honestly rather than oversold. The true series and the shift approximation agree directionally but only moderately (r=+0.49 between them, mean absolute difference 3.1 percentage points) — both are kept in the notebook, true vintage as primary evidence, the approximation as a documented fallback for pre-June-2010 and for months between semiannual reports. §12–15 (save CSVs, summary, interpretation) updated to report both series' results side by side; the old "Deferred: WASDE-Based True Vintage Series" section (§14) is replaced with a "Resolved" section documenting what was actually built and what remains genuinely out of scope (pre-2010 coverage, production wiring, a scheduled job).
+- `notebooks/coffee_backtests/README.md`, `docs/FILE_MAP.md`, `CLAUDE.md` — updated the L2a rows/sections to report both the true-vintage and approximation gate results, and documented the new source's quirks (pagination wrap-around, PDF anchor strategy, WASDE-vs-WMT correction) in CLAUDE.md's "Data Sources & Key Quirks".
+
+### Why it matters
+Closes out the highest-priority item from [0.17.0]'s "not done" list — but not the way it was originally scoped. Catching the WASDE-doesn't-cover-coffee error before implementation avoided building a source against the wrong report entirely. The true vintage series is stronger evidence than the approximation it replaces as primary, while validating that the approximation's direction and rough magnitude were reasonable in the interim.
+
+---
+
+## [0.17.0] — 2026-07-13
+
+### Changed
+- **Rebuilt the L2a USDA stocks-to-use signal around a vintage-lag correction — fixes a look-ahead bias in the prior backtest.** The USDA PSD bulk CSV is always the *latest revised* vintage of every marketing year; the original notebook 04 correlated that fully-revised number against the price from the year it describes, which a roaster could not have known in real time. Fixed by shifting the monthly forward-filled S/U series forward 12 months (tested 6m as a sensitivity check) before correlating with price, simulating the real publication lag. Raw r(S/U, price level) = −0.40 weakens to −0.26 once the lag is applied — expected, and the honest number.
+- **Redefined the L2a gate into two tests, both on the vintage-lagged series, both PASS on real data:** Gate 1 `r(vintage S/U, 12m-forward price level) ≤ −0.25` → **r=−0.312** (p=2.0e-5, n=180); Gate 2 `r(S/U YoY delta, contemporaneous price level) ≤ −0.20` → **r=−0.259** (p=4.6e-4, n=180). Replaces the old single YoY-change gate (r=−0.04, FAIL) that was the wrong lens for a slow annual step-function variable.
+- **Added three new features**, all computed on the annual series to avoid diluting an annual signal (same class of fix already applied to L2b/L3): a **10-year rolling z-score** (uses only the prior 10 years' mean/std, so it introduces no additional look-ahead beyond the vintage lag), a **YoY delta** (`stu[t] − stu[t-1]`, the "shock" dimension), and **months of consumption** (`S/U% / 100 × 12`, a roaster-legible reframing).
+- **Replaced the linear 12%/35% clamp with a z-score-based non-linear stress score** (`stress = clamp((−z + 2) / 4, 0, 1)`), self-calibrating against the series' own 10-year history rather than fixed percent bounds. Latest read (2025): Z=−1.96, stress=0.99 — a once-in-a-generation tight buffer, 1.4 months of consumption in storage.
+- `notebooks/coffee_backtests/04_usda_supply_signal.ipynb` — full rebuild: vintage-lag section with raw-vs-lagged comparison table, feature engineering, dual gates, correlation matrix, rolling stability (honest but modest: 52% of 3yr windows negative, up from 23% on the old YoY basis — the full-sample gates are the stronger evidence), z-score stress score with a descriptive Z<-1/Z>+1 decision rule, and a deferred-work section on building a true WASDE-vintage series.
+- `notebooks/coffee_backtests/README.md`, `docs/FILE_MAP.md` — updated the L2a gate row/status to the new dual-gate PASS result.
+- Untracked `notebooks/coffee_backtests/data/04_*.png` (regenerable, already embedded inline in the executed notebook), consistent with the nb05 figure-untracking policy from [0.16.0].
+
+### Not done (explicitly deferred, see notebook §14)
+- A genuinely vintage-aware S/U series built from historical monthly WASDE reports. The 12-month shift is a practical approximation of the publication lag, not a literal point-in-time reconstruction. Building the real thing means parsing ~25 years of monthly WASDE PDF/HTML reports as a new data source (own `implement-source` pass + reviewer sign-off) — worth doing only if L2a's composite weight (notebook 06) turns out to be sensitive to the extra precision.
+- `stu_z_score` / `stu_stress_score` were **not** promoted into `domains/coffee/features/supply_features.py` (still a stub) or `usda_psd.py`. Per the nb05/L3 precedent, new backtest-validated features stay notebook-local until the composite (notebook 06) actually wires them in.
+
+### Why it matters
+The prior L2a result (r=−0.40 to −0.59 depending on lag) was contaminated by look-ahead — a roaster reading this signal in real time would not have had the revised numbers the backtest used. The vintage-lagged, dual-gate result (r=−0.26 to −0.31) is weaker but honest, and still clears both redefined thresholds, so L2a remains a validated fundamental for the composite — just a noisier one than the original notebook implied.
 
 ---
 
