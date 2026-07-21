@@ -116,6 +116,18 @@ Output range: 0.4× (strong caution) → 2.3× (high conviction buy)
 
 Price position drives timing. Supply/climate signals amplify conviction when they agree.
 
+**Multiple composite formulations are under active parallel exploration — not yet
+converged.** This multiplicative formula (also implemented in
+`domains/coffee/models/signal_generator.py` + `climate_features.py::climate_risk_score`) is
+one collaborator's design and the one being validated/improved in notebook 06. A different,
+structurally simpler **additive percentile-score system** also exists in
+`docs/greensignal_procurement_intelligence_architecture.md` §11–12 (`price_percentile_2y`-
+based point bonuses, thresholded at a score, not a multiplier). A third collaborator has been
+exploring producer FX as a possible additional input (notebook 08 — tested and shelved as a
+direct timing signal, "better framed as a conditioning/regime variable"; see
+`docs/NEXT_STEPS.md`). Don't treat either formula above as final — reconciling them into one
+production design is a deliberately deferred decision, not an oversight.
+
 | Layer | Signal | Source | Phase 0 r | Real-data r |
 |-------|--------|--------|-----------|-------------|
 | L1 | 52-week price position | ICE KC=F / Yahoo Finance `KC=F` | +0.64 (contemp) | **+0.852 (contemp); +0.201 @ 24m fwd** ✅ |

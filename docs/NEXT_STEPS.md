@@ -1,6 +1,6 @@
 # GreenSignal — Next Steps
 
-This file is the handoff note between sessions. Claude updates it automatically at the end of each working session. Both collaborators should read it at the start of any session and update it when priorities shift.
+This file is the handoff note between sessions. Claude updates it automatically at the end of each working session. All collaborators should read it at the start of any session and update it when priorities shift.
 
 ---
 
@@ -9,6 +9,23 @@ This file is the handoff note between sessions. Claude updates it automatically 
 **Phase 1 — Real data pipelines and backtest validation**
 
 The skeleton is built and the architecture is locked. The immediate work is implementing the first three data sources (no GEE needed) and running them through the backtest notebooks to validate signal rank order on real data before any product work begins.
+
+**Multiple composite formulations are under active parallel exploration by different
+collaborators — not yet converged, and that's intentional for now:**
+- The multiplicative formula in `CLAUDE.md` / `docs/GreenSignal_Math_Reference.md`
+  (`multiplier = (1.5 - price_position) × (1.0 + 0.65 × climate_risk_score)`), implemented
+  in `domains/coffee/models/signal_generator.py` — this is the one being validated and
+  improved in `notebooks/coffee_backtests/06_composite_backtest.ipynb`.
+- An additive percentile-score system in
+  `docs/greensignal_procurement_intelligence_architecture.md` §11–12
+  (`price_percentile_2y`-based point bonuses, thresholded at a score).
+- Producer FX as a possible additional input (`08_producer_fx_signal.ipynb`, by
+  `aaditshah97`) — tested as a direct timing signal and shelved ("better framed as a
+  conditioning/regime variable than a composite timing input"), PR #5 (same collaborator)
+  still open.
+
+Do not treat any one of these as "the" final design without checking with the team —
+reconciling them is a deliberately deferred decision.
 
 ---
 
