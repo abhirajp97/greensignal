@@ -815,11 +815,87 @@ appropriate for a signed residual. `fwd12_from_month` and
   not flowering-window) rainfall as a structurally different climate pathway
   (berry drop / fungal disease during an already-picked-or-picking crop).
 
+## 15. Deferred — validating the global composite's *forecasting* transferability to India (not yet started)
+
+External review of §14 flagged a precise gap between what's proven and what a
+"translate the global signal into an India signal" product would need: §14's
+R²=0.887/0.962 is a **contemporaneous** relationship — India price and (global
+price + FX) move together *at the same time*. The global composite's actual
+job is **forecasting** — using current stocks-to-use/ENSO/rainfall/positioning
+to flag that price is likely under/overpriced relative to fundamentals. Those
+are different claims, and §14 only tested the first one.
+
+**The concrete test, once it's unblocked:** the global (Brazil) composite's
+own production wiring is still pending (`CLAUDE.md` Build Sequence step 5 —
+`build_recommendation`'s formula/weights need to move from notebook-06-derived
+constants into the production feature files first). Once that composite
+produces a real forward-looking multiplier/recommendation at each historical
+point, translate it through the §14 pass-through equation
+(`india_price_predicted = global_price_predicted^0.937 × fx^0.947` for
+Arabica, using that species' own elasticities) and correlate the translated
+forecast against forward India price changes, gated the same way the original
+composite was gated against forward global price changes. If it holds, the
+transfer is validated for real, not just assumed from the contemporaneous fit.
+If it doesn't, that's a genuinely useful finding in its own right — it would
+mean India price *levels* track global+FX closely but India price *timing/
+momentum* moves differently (adjustment lags, sticky domestic pricing), a
+real and distinct phenomenon commodity pass-through can have.
+
+**Scope this to Arabica first, deliberately.** Arabica's pass-through residual
+(3.8% unexplained) is less than half of Robusta's (11.3%) — and that extra
+unexplained room in Robusta is exactly where §14's wrong-signed-but-real-
+looking climate residual result (r=−0.587, p=0.045) showed up. Arabica is
+closer to a pure pass-through story; a straight translation is safer and
+cleaner to validate there first, with Robusta's "something else going on"
+treated as a separate, harder problem rather than assumed away.
+
+**Not free even if the test passes — FX becomes a first-class product
+variable, not something folded silently into "the coffee story."** The
+usd_inr elasticity (0.947) nearly matches the coffee elasticity itself — a
+meaningful share of any future India price move would be rupee strength
+(RBI policy, capital flows, US rate decisions), which has nothing to do with
+coffee. A translated India signal needs an explicit view on FX (or an honest
+"we don't have a view on this, flagged separately" stance), not an implicit
+one.
+
+**Also raises an unresolved product-definition question, worth deciding
+explicitly before or alongside this test:** who is the India roaster customer?
+- An India-based roaster paying in rupees for domestically-auctioned lots —
+  for them, the FX component is directly actionable (a weakening rupee is a
+  real cost signal even with flat global coffee prices).
+- A US/EU roaster sourcing India-origin lots through a USD-pricing importer —
+  for them, FX pass-through mostly washes out (already absorbed into the
+  quoted USD price), and what matters is closer to the raw global signal plus
+  India-specific quality/availability risk (the yield/disease angle from the
+  climate work, not the price-pass-through angle).
+
+These are two different products under one "India signal" label. Worth
+deciding which one (or both, clearly separated) is being built for, rather
+than defaulting to one implicitly.
+
+**Why this matters beyond India, if it validates:** the architecture
+implication is bigger than "less work for one origin" — it would mean the
+product doesn't need N independently-backtested composites per origin
+(coffee's other origins, or cacao per the expansion path), just one
+well-validated global composite plus a lightweight per-origin translation
+layer (a pass-through elasticity, an explicit FX view, a short list of known
+event risks like EUDR flagged separately). The three "failed" India climate
+experiments (§13, §14) aren't wasted effort toward that — they're what ruled
+out "local weather is the story" and correctly landed on "pass-through plus
+FX is the story," which is the piece that actually generalizes.
+
+**Status: flagged and scoped, not started.** Blocked on the global composite's
+production wiring (`CLAUDE.md` Build Sequence step 5) landing first — tracked
+in `docs/NEXT_STEPS.md`.
+
 ---
 
-*GreenSignal · India Origin Signal — Full Build Plan v2.4 · §14 tests and
-confirms external review's global-pass-through-plus-FX diagnosis of the
-climate gate's FAIL (2026-07-28); §13 closes out both follow-up experiments
+*GreenSignal · India Origin Signal — Full Build Plan v2.5 · §15 flags (not yet
+started) the forecast-transferability test needed to move §14's contemporaneous
+pass-through finding into an actual India timing signal, plus the FX-as-
+first-class-variable and India-customer-definition questions it surfaces; §14
+tests and confirms external review's global-pass-through-plus-FX diagnosis of
+the climate gate's FAIL (2026-07-28); §13 closes out both follow-up experiments
 flagged in §12.8 and documents a district-alias bug fix plus an external
 TLS/data-loss incident (2026-07-22, same day as v2.2); §12 supersedes §1-11's
 price-source and gate-result claims (2026-07-22); v2.1 corrected v2 against
