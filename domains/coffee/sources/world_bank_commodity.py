@@ -20,8 +20,14 @@ Fetch strategy (two-step):
 
 Quirks:
   - Date column uses "YYYYMmm" format, e.g. "2026M04" → end of April 2026.
-  - Header rows: row index 4 = human name, 5 = unit, 6 = machine code.
-  - Data rows start at index 7.
+  - Header row count is NOT stable — WB dropped the machine-code row entirely in
+    a 2026-07-02 update (previously: row 4 = human name, 5 = unit, 6 = machine
+    code, data from row 7; now: row 4 = human name, 5 = unit, data from row 6).
+    The parser locates the first data row dynamically (first row whose column 0
+    matches the "YYYYMmm" pattern) and searches every row above it for a target
+    series label — matching either the legacy machine code (e.g. COFFEE_ARABIC)
+    or the current human-readable name (e.g. "Coffee, Arabica") — rather than
+    hardcoding row indices.
   - Some trailing rows may be empty — skip any row whose date does not match
     the expected pattern.
   - NaN values for recent months indicate data not yet published — skip silently.
@@ -54,10 +60,14 @@ _SOURCE_TAG = "world_bank:pink_sheet"
 _UNIT = "USc/lb"
 _DATE_RE = re.compile(r"^\d{4}M\d{2}$")
 
-# Map WB column codes → asset_id
-_SERIES: dict[str, str] = {
+# Map WB series labels → asset_id. Both the legacy machine code and the current
+# human-readable name are listed since WB has changed which one the file carries
+# (see module docstring); whichever the live file has determines the column.
+_SERIES_MATCH: dict[str, str] = {
     "COFFEE_ARABIC": WB_ARABICA_BENCHMARK.asset_id,
     "COFFEE_ROBUS": WB_ROBUSTA_BENCHMARK.asset_id,
+    "Coffee, Arabica": WB_ARABICA_BENCHMARK.asset_id,
+    "Coffee, Robusta": WB_ROBUSTA_BENCHMARK.asset_id,
 }
 
 # Sanity range in USc/lb.  Arabica 1960-present: ~35–700.  Robusta: ~20–450.
@@ -167,26 +177,37 @@ def _parse_excel(
         logger.error("Failed to parse World Bank Excel: %s", exc)
         return [], 1
 
-    # Row 6 (index 6) contains machine-readable column codes (e.g. COFFEE_ARABIC).
+    # Locate the first data row by its date-pattern cell rather than assuming a
+    # fixed header-row count — WB dropped the machine-code header row in a
+    # 2026-07-02 update, shifting data up by one row with no advance notice.
+    col0 = df.iloc[:, 0].fillna("").astype(str)
+    date_row_positions = [i for i, v in enumerate(col0) if _DATE_RE.match(v.strip())]
+    if not date_row_positions:
+        logger.error("Could not locate any date-pattern rows in World Bank Excel")
+        return [], 1
+    data_start = date_row_positions[0]
+
+    # Search every header row above the first data row for our target series,
+    # matching either the legacy machine code or the current human-readable name.
     # Use fillna("") before astype(str): mixed-dtype columns leave np.float64(nan)
     # as float objects when astype(str) is called on an object Series.
-    code_row = df.iloc[6].fillna("").astype(str)
-
-    # Locate the column index for each series we want
-    series_cols: dict[str, tuple[int, str]] = {}
-    for wb_code, asset_id in _SERIES.items():
-        hits = [i for i, v in enumerate(code_row) if v.strip() == wb_code]
-        if not hits:
-            logger.warning("Series %r not found in World Bank Excel — skipping", wb_code)
-            continue
-        series_cols[wb_code] = (hits[0], asset_id)
+    series_cols: dict[int, tuple[str, str]] = {}
+    matched_asset_ids: set[str] = set()
+    for header_row_idx in range(data_start):
+        row_vals = df.iloc[header_row_idx].fillna("").astype(str)
+        for col_idx, cell in enumerate(row_vals):
+            label = cell.strip()
+            asset_id = _SERIES_MATCH.get(label)
+            if asset_id is None or col_idx in series_cols or asset_id in matched_asset_ids:
+                continue
+            series_cols[col_idx] = (label, asset_id)
+            matched_asset_ids.add(asset_id)
 
     if not series_cols:
         logger.error("No target series found in World Bank Excel")
         return [], 1
 
-    # Data rows start at index 7
-    data_rows = df.iloc[7:].reset_index(drop=True)
+    data_rows = df.iloc[data_start:].reset_index(drop=True)
 
     observations: list[MarketObservation] = []
     error_count = 0
@@ -207,7 +228,7 @@ def _parse_excel(
         if observed_date < start or observed_date > end:
             continue
 
-        for wb_code, (col_idx, asset_id) in series_cols.items():
+        for col_idx, (label, asset_id) in series_cols.items():
             raw_val = row.iloc[col_idx]
             if pd.isna(raw_val):
                 continue  # data not yet published for this month
@@ -217,7 +238,7 @@ def _parse_excel(
             except (TypeError, ValueError) as exc:
                 error_count += 1
                 logger.warning(
-                    "Cannot parse value for %s at %s (%r): %s", wb_code, raw_date, raw_val, exc
+                    "Cannot parse value for %s at %s (%r): %s", label, raw_date, raw_val, exc
                 )
                 continue
 
@@ -228,7 +249,7 @@ def _parse_excel(
                     value=usc_lb,
                     unit=_UNIT,
                     source=_SOURCE_TAG,
-                    raw={"wb_code": wb_code, "date_str": raw_date, "usd_kg": usd_kg},
+                    raw={"wb_series": label, "date_str": raw_date, "usd_kg": usd_kg},
                 )
             )
 

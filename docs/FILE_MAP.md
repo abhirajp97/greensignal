@@ -41,6 +41,7 @@ Every file in the repo, what it does, and its current status. Update this whenev
 | `phase0_next_steps.md` | Per-signal data source documentation and agreed next steps coming out of Phase 0 review. |
 | `notebook_01_guide.md` | Reader's guide for notebook 01 (ICE KC price position signal) — section-by-section explanation, math, and key numbers. |
 | `notebook_03_guide.md` | Reader's guide for notebook 03 (CFTC COT signal) — section-by-section explanation, momentum vs contrarian thesis, and why COT works as a composite modifier not a standalone signal. |
+| `india_origin_signal_plan_v2_full_build.md` | India origin signal (Arabica + Robusta, Karnataka) build plan (v2.4). §12 (real price/supply source found on `coffeeboard.gov.in`) + §13 (multi-district weighting, Arabica 24m robustness, district-alias bug fix, TLS-cert/data-loss incident) + §14 (global pass-through + FX decomposition — R²=0.887-0.962, confirms India price is dominated by global benchmark + FX, not local climate) are authoritative. |
 
 ---
 
@@ -64,7 +65,7 @@ All models use `pydantic.BaseModel`. These are the objects that flow between eve
 
 | File | What it does | Status |
 |------|-------------|--------|
-| `recommendation_engine.py` | The composite formula: `multiplier = (1.5 - price_position) × (1.0 + 0.65 × climate_risk_score)` | 🔲 Stub |
+| `recommendation_engine.py` | `build_recommendation()` — applies the composite formula (`multiplier = (1.5 - price_position) × (1.0 + 0.65 × climate_risk_score)`), returns a `Recommendation` with action/headline/rationale. Origin-agnostic — used by both `generate_signal()` (Brazil) and `generate_india_signal()` | ✅ Done |
 | `scenario_engine.py` | Computes `ScenarioOutput` from `ScenarioInput` for margin modelling | 🔲 Stub |
 | `forecasting.py` | Wraps NeuralProphet or ARIMA-X — takes price + feature DataFrames, returns `Forecast` | 🔲 Stub |
 | `data_quality.py` | Gap detection and range checks — called by ingestion jobs before storing | 🔲 Stub |
@@ -92,8 +93,8 @@ All models use `pydantic.BaseModel`. These are the objects that flow between eve
 
 | File | What it does | Status |
 |------|-------------|--------|
-| `assets.py` | Declares tracked assets as constants: origins (`BRAZIL_ARABICA`, `COLOMBIA_ARABICA`, `ETHIOPIA_ARABICA`, `VIETNAM_ROBUSTA`), benchmarks (`ICE_ARABICA_BENCHMARK`, `WB_ARABICA_BENCHMARK`, `WB_ROBUSTA_BENCHMARK`), and signals (`ENSO_ONI`, `COT_KC`, `USDA_STU`, `USDA_STU_VINTAGE`, `CHIRPS_MINAS`); collected in `ALL_ASSETS` | ✅ Done |
-| `regions.py` | Geographic bounding boxes for CHIRPS extraction: `MINAS_GERAIS`, `VIETNAM_CENTRAL_HIGHLANDS` | ✅ Done |
+| `assets.py` | Declares tracked assets as constants: origins (`BRAZIL_ARABICA`, `COLOMBIA_ARABICA`, `ETHIOPIA_ARABICA`, `VIETNAM_ROBUSTA`, `INDIA_ARABICA`, `INDIA_ROBUSTA`), benchmarks (`ICE_ARABICA_BENCHMARK`, `WB_ARABICA_BENCHMARK`, `WB_ROBUSTA_BENCHMARK`), and signals (`ENSO_ONI`, `COT_KC`, `USDA_STU`, `USDA_STU_VINTAGE`, `CHIRPS_MINAS`, `CHIRPS_KODAGU`, `FX_USD_INR`, `INDIA_PRODUCTION`); collected in `ALL_ASSETS` | ✅ Done |
+| `regions.py` | Geographic bounding boxes for CHIRPS extraction: `MINAS_GERAIS`, `VIETNAM_CENTRAL_HIGHLANDS`, `KODAGU` | ✅ Done |
 
 ### `domains/coffee/sources/` — One file per data source. Each returns `list[MarketObservation]` or `list[FeatureObservation]`.
 
@@ -106,6 +107,9 @@ All models use `pydantic.BaseModel`. These are the objects that flow between eve
 | `usda_psd.py` | USDA PSD bulk CSV — world stocks-to-use % (free, no auth); always latest-revised vintage, look-ahead risk for backtests — see `usda_coffee_wmt.py` | **4th** — free, no auth | ✅ Done |
 | `chirps.py` | CHIRPS via Google Earth Engine (Minas Gerais GAUL polygon); NetCDF fallback | **5th** | ✅ Done |
 | `usda_coffee_wmt.py` | USDA "Coffee: World Markets and Trade" semiannual PDF circular (`esmis.nal.usda.gov`, free, no auth) — true vintage-dated world stocks-to-use %, fixes `usda_psd.py`'s look-ahead bias. Not WASDE (WASDE doesn't cover coffee). Deps: `pdfplumber`, `beautifulsoup4` | **6th** — free, no auth | ✅ Done |
+| `chirps_india.py` | CHIRPS via GEE, now multi-district (`district` param: Kodagu/Chikmagalur/Hassan, Karnataka's 3 largest coffee districts — GAUL level-2 `ADM2_NAME`, not level-1 like Brazil); species-specific blossom windows (`is_flowering_month(month, species)` — Robusta Feb-Mar, Arabica Apr-May, corrected against real agronomy sources); `drought_risk_score`; NetCDF fallback. New module (not a `chirps.py` parameterization) — built for the India origin signal | ✅ Done |
+| `coffee_board_india_price.py` | Coffee Board of India's Daily Market Report archive (`coffeeboard.gov.in`, free, no auth, stateful ASP.NET postback flow) — genuine India-origin "Raw Coffee Price (Karnataka)" (Arabica/Robusta, Parchment/Cherry, ₹/50kg), archive back to 2012. Supersedes the WB-benchmark proxy fallback the first India sprint pass settled for | ✅ Done |
+| `coffee_board_india_supply.py` | Coffee Board's semiannual "Database on Coffee" PDF circular (free, no auth) — district + national production estimates (MT), vintage-dated per report like `usda_coffee_wmt.py`. India-specific supply signal, back to 2009. `_region_slug()` now applies a `_REGION_ALIASES` map to collapse district-name spelling drift across editions (e.g. "Chikkamagaluru"/"Chikmagalur"). **Data note:** the cached `data/coffee_board_india_supply.csv` is currently a reduced 168-row/4-edition snapshot, not the full 1,289-row/62-report backfill — lost to a caching-script mistake during a `coffeeboard.gov.in` TLS-cert outage; full re-backfill pending the site's cert renewal (see plan doc §13.4) | ✅ Done (cached data reduced, pending re-backfill) |
 
 ### `domains/coffee/features/` — Signal computation from raw DataFrames
 
@@ -120,7 +124,7 @@ All models use `pydantic.BaseModel`. These are the objects that flow between eve
 
 | File | What it does | Status |
 |------|-------------|--------|
-| `signal_generator.py` | Takes all five signal inputs → calls `recommendation_engine.build_recommendation` → returns `Recommendation` | 🔲 Stub |
+| `signal_generator.py` | `generate_signal()` — Brazil, takes all five signal inputs → calls `recommendation_engine.build_recommendation`. `generate_india_signal()` — additive, India's 2-input (price_position + Kodagu climate risk) composite, same formula shape | ✅ Done |
 | `risk_scorer.py` | Builds `RiskSignal` objects from supply and climate inputs | 🔲 Stub |
 
 ---
@@ -163,7 +167,9 @@ Empty — React + Vite scaffold deferred until data pipeline and signal are vali
 | `coffee_backtests/04_usda_supply_signal.ipynb` | L2a: USDA world stocks-to-use backtest, **vintage rebuild** — fixes look-ahead bias two ways: (1) a practical 12m-forward shift of the PSD bulk file (monthly cadence, fallback), (2) the true fix via the new `usda_coffee_wmt.py` source (semiannual, no approximation). Redefined dual gate PASSES on both: approximation Gate1 r=−0.312/Gate2 r=−0.259 (n=180); true vintage Gate1 r=−0.488 (n=30, *stronger*)/Gate2 r=−0.261 (n=29, not significant). Adds 10yr rolling z-score, YoY delta, months-of-consumption features and a z-score-based non-linear stress score | ✅ Done |
 | `coffee_backtests/05_chirps_signal.ipynb` | L3: CHIRPS Minas Gerais drought backtest, **SPI rebuild**. Flowering SPI-3 (Sep–Nov) deficit vs fwd-12m price r=+0.483 (p=0.069, n=15) — PASSES redefined confirming-signal gate (≥+0.30); deficit form beats signed SPI (asymmetric); robust to look-ahead (expanding r=+0.494) and to stocks control (partial r=+0.48). Low-to-mid-weight confirming amplifier | ✅ Working |
 | `coffee_backtests/06_composite_backtest.ipynb` | Full composite: aligns all 5 signals onto one monthly frame (reusing nb04's step-function forward-fill for L2a/L3), derives weights via r-proportional reweighting (vs Phase 0 fixed weights and a Ridge ceiling check), runs a leave-one-out ablation, walk-forward gates on `≥3.50%` forward prescience. **PASSES both weight schemes** (Phase 0 +9.31%, r-proportional +3.62%) but on a thin walk-forward sample (11-21 buy-months across 10 years) — treat as directional, not final. Ablation: L2b strongest contributor, L5 helps (validates momentum role), L3 near-neutral, L2a counterintuitive (needs its risk score rebuilt off the true-vintage series before finalizing) | ✅ Done |
-| `coffee_data_validation/` | Exploratory data quality checks as each new source is pulled | 🔲 Empty |
+| `coffee_backtests/08_producer_fx_signal.ipynb` | Producer FX PoC (USD/BRL → KC, extended to 10 origin currencies via `yfinance`): G1 PASS (monthly r=−0.316), G2/G3 FAIL — co-moves with KC/DXY, not an exploitable timing lead after controls | ✅ Done |
+| `coffee_backtests/09_india_origin_signal.ipynb` | India origin backtest v2 (Arabica + Robusta, Karnataka) — rebuilt entirely on REAL India-origin data: price from `coffee_board_india_price.py` (9,217 obs, 2014-2026), supply from `coffee_board_india_supply.py`, climate from `chirps_india.py` (species-specific SPI-3 windows, now multi-district). Gate (annual r ≥ +0.30): Robusta r=−0.357 **FAIL**, Arabica r=−0.038 **FAIL** — both closed out via 2 negative experiments (multi-district weighting, Arabica 24m robustness). §6-7 (new): global pass-through + FX decomposition — `log(india_price) ~ log(global_price) + log(usd_inr)` gives **R²=0.887 (Robusta) / 0.962 (Arabica)**, explaining 89-96% of India's price; residual re-test against the same climate gate still FAILS both species (Robusta r=−0.587, p=0.045 — more significant AND more wrong-signed than raw price). `price_position_52w` sanity check passes cleanly — price data/mechanics are sound, and India's price is now known to be dominated by global pass-through + FX, not local climate. Composite (§8) wired for demo purposes, confidence=0.3 | ✅ Done (gate FAIL, real data, fully diagnosed — see notebook §9) |
+| `coffee_data_validation/india_price_history_audit.ipynb` | Task 0 for the India origin signal — original timeboxed (~30-45min) pass found nothing (wrong domain tried: `indiacoffee.org`, dead). §6 documents the correction: a second pass found the real live domain `coffeeboard.gov.in`, with real daily price + semiannual production archives. See `docs/india_origin_signal_plan_v2_full_build.md` §12 for the full writeup | ✅ Done (superseded verdict documented, not deleted) |
 
 ---
 
@@ -178,4 +184,4 @@ Empty test directories — tests are written alongside each implementation.
 
 ---
 
-*Last updated: May 2026 — initial skeleton*
+*Last updated: 2026-07-22 — India origin signal, real-data pass: found the real `coffeeboard.gov.in` domain and built `coffee_board_india_price.py` + `coffee_board_india_supply.py`, superseding the earlier WB-proxy fallback; notebook 09 rebuilt on real data (gate still FAILS, now honestly diagnosed via lag sweep + sanity check); `chirps_india.py` corrected to species-specific flowering windows*

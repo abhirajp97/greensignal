@@ -55,5 +55,16 @@ Buffer period needed for lags: ~2009 data required for ENSO ~14m lead alignment.
 | `06_composite_backtest.ipynb` | Full composite: combine all signals, measure forward prescience |
 | `07_wb_physical_prices.ipynb` | L1 on World Bank Arabica/Robusta physical prices + basis vs KC=F |
 | `08_producer_fx_signal.ipynb` | Producer FX PoC (USD/BRL → KC): G1 PASS (monthly r=−0.316); G2/G3 FAIL — co-moves, not an exploitable timing lead after DXY/KC controls |
+| `09_india_origin_signal.ipynb` | India origin demo (Arabica + Robusta, Kodagu): climate signal (CHIRPS, GAUL level-2) is genuinely India-origin; price leg is the WB global benchmark (Task 0 found no scrapeable India-specific price history). Gate (annual r ≥ +0.30, same bar as L3): Arabica r=−0.214 **FAIL**, Robusta r=+0.132 **FAIL** — both n=16, both honest results given the proxy price, not a bug. Composite wired for demo purposes only, confidence=0.4 ("accumulating validation"), not presented as a validated India timing signal |
 
 Work through these in order — the first three use data that needs no GEE approval.
+
+## India origin signal (notebook 09) — separate track, own gate
+
+Unlike 01–08 (which validate signal *layers* feeding the single global-Arabica
+composite), notebook 09 validates a **separate origin-specific composite** for India
+(Arabica + Robusta, Kodagu). It reuses the same formula shape and `price_position_52w`
+feature, but is gated independently and has **not** passed its gate — see the table
+row above and `docs/india_origin_signal_plan_v2_full_build.md` for the full writeup,
+including why the FAIL is expected (proxy price leg, not a data or methodology bug)
+and what would need to change (a genuine India-origin price source) to re-gate it.
