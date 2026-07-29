@@ -9,11 +9,33 @@ Versions are dated. Each entry covers what changed, why it matters, and who did 
 ## [Unreleased]
 
 Planned but not yet merged to `main`:
+- Reconcile notebook 06's two open anomalies: the secondary prescience check's counter-intuitive BUY-vs-CAUTION ordering, and the ablation's sign reversal for L5 vs. the original notebook
 - Rebuild `stu_stress` (L2a's composite input) off the true-vintage series instead of the PSD-approximation series, then re-run notebook 06's L2a ablation
-- Production wiring: `build_recommendation`, `climate_risk_score` weights, `risk_scorer.py`, promote `stu_risk_score` / `enso_lagged` / the SPI drought score into production feature files
+- Production wiring: `build_recommendation` (including the rolling-24m normalization), `climate_risk_score` weights, `risk_scorer.py`, promote `stu_risk_score` / `enso_lagged` / the SPI drought score into production feature files — confirm which composite formula (of the several under parallel exploration) is being wired first
 - Promote the validated SPI flowering-deficit feature from notebook 05 into `domains/coffee/features/climate_features.py` (replacing the provisional mm-anomaly `drought_risk_score`)
 - Extend `usda_coffee_wmt.py` coverage before June 2010 (older circulars use a different/unparseable format) — low priority, only if the composite shows L2a's weight is sensitive to it
 - Independent engineering work: `core/storage/repositories.py` + job wiring (`jobs/coffee/*.py`, all still stubs — nothing is currently persisted), `margin_features.py`
+
+---
+
+## [0.20.0] — 2026-07-20
+
+### Changed
+- **Rebuilt the composite backtest (notebook 06) from a rare-event flag to a continuous product signal — the first version's sparse result was a real product problem, not a statistical footnote.** The first version passed its gate (discrete "forward prescience after BUY" ≥3.50%) but on only 11–21 buy-months across 10 walk-forward test years, 3–4 with *zero* buy months. Flagged by the product owner: a tool that goes silent for years can't serve the weekly purchasing decision GreenSignal exists to support.
+- **Re-read the product-spec docs** (`docs/GreenSignal_ICP.md`, `coffee_intelligence_mvp.md`, `GreenSignal_Phase0_Report.md`, `GreenSignal_Math_Reference.md`) and confirmed the mismatch was in the backtest's methodology, not the product design or the underlying data: GreenSignal is built as an always-on, continuous 3-state (BUY/NEUTRAL/CAUTION) signal — Phase 0's own synthetic target has L1 alone firing BUY in 22% of months; **real data confirms 35–41%, not sparse at all.**
+- **Root cause found and fixed:** the walk-forward re-derived its normalization baseline once per *calendar year* from an expanding window (annual-refit), producing lumpy 12-month buckets — confirmed directly by running annual-refit side by side with rolling-window alternatives, same weights and thresholds held fixed. A **rolling 24-month** trailing-window normalization (recomputed every month, the same style `price_position_52w` already uses) raised the composite's BUY rate from 4.9% to 20.0% and cut the longest silent gap from 18 to 16 months.
+- **Primary validation gate switched from the discrete prescience test to the continuous `cost_improvement_backtest` methodology** (`docs/GreenSignal_Math_Reference.md` §11.1 — the same one notebook 01 used for L1 alone), matching how Phase 0's own doc frames it (the primary ROI story) and how the product actually works (continuous purchase-volume scaling every month, not a rare binary alert). **PASSES: walk-forward +5.86%**, exceeding L1-alone's own walk-forward benchmark (+3.71%); full-history +4.45%.
+- **Confirmed the spike-avoidance story directly** (never re-tested in the first version): the composite held a sustained BUY signal through most of Jan–Sep 2023 (price $146–190/lb), before the 2024 Arabica rally accelerated past $220/lb and kept climbing — a concrete instance of `docs/GreenSignal_Phase0_Report.md` §3.2's "spike avoidance is the real product story."
+- Also added the multiplier clamp (`[0.4, 2.3]`) and the real BUY/CAUTION thresholds (`>1.25`/`<0.80`, `docs/GreenSignal_Math_Reference.md` §7.3) — the first version used an ad hoc `>1.2` for BUY and never implemented the CAUTION branch at all.
+- **Documented that the composite formula is under active parallel exploration by multiple collaborators** (`CLAUDE.md`, `docs/NEXT_STEPS.md`) — a different, structurally simpler additive percentile-score system also exists in `docs/greensignal_procurement_intelligence_architecture.md`, and producer FX was explored and shelved as a direct timing input (notebook 08). This rebuild specifically validates and improves the multiplicative formula already implemented in `signal_generator.py`, not a claim that it's the converged team design.
+
+### Not resolved (reported honestly, not smoothed over)
+- The secondary (discrete, 3-state) prescience check shows BUY months *underperforming* CAUTION/NEUTRAL forward returns in this sample — tempered by using in-sample fixed weights rather than the walk-forward weights that pass the primary gate, and plausibly reflecting the 2023–2025 structural supply-shock rally (world stocks-to-use at record lows) where mean-reversion timing is expected to underperform momentum. Flagged as a real limitation worth further investigation.
+- The leave-one-out ablation reverses sign for L5 (`cot_momentum`) vs. the original notebook's ablation — dropping it now *helps* the walk-forward cost-improvement metric (+0.56pp), the opposite of the original notebook's discrete-prescience-based finding (−0.81pp). Which sub-signals earn their weight is sensitive to the validation metric and weighting scheme used; L2b (`enso_risk`) remains the strongest contributor in both notebooks.
+- `stu_stress` is still built on the PSD-approximation series, not the stronger true-vintage series — unchanged from [0.19.0], still the top item blocking final composite weights.
+
+### Why it matters
+A backtest that technically clears its numeric gate can still fail the product it's meant to validate — this rebuild is a case study in checking the metric against the actual product requirement (continuous weekly engagement) rather than trusting a passing gate at face value. The methodology fix (continuous cost-improvement, rolling normalization) is likely more consequential than any single weight choice: it changes what "the composite works" even means for this product.
 
 ---
 
