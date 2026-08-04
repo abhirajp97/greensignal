@@ -184,6 +184,151 @@ CHIRPS_MINAS = Asset(
     },
 )
 
+INDIA_ARABICA = Asset(
+    asset_id="coffee:origin:india:arabica",
+    domain="coffee",
+    asset_type="origin",
+    name="India Arabica (Karnataka)",
+    unit="inr_per_50kg",
+    metadata={
+        "country": "India",
+        "species": "arabica",
+        "regions": ["kodagu"],
+        "growing_system": "shade_grown",
+        "price_series": (
+            "Genuine India-origin: 'Raw Coffee Price (Karnataka)' Parchment/Cherry "
+            "grades from coffee_board_india_price.py (Coffee Board of India's Daily "
+            "Market Report archive, 2012-present). Task 0's original audit found no "
+            "usable India-origin source and fell back to a WB global-benchmark proxy "
+            "— superseded once the real Coffee Board archive was found; see "
+            "docs/india_origin_signal_plan_v2_full_build.md"
+        ),
+    },
+)
+
+INDIA_ROBUSTA = Asset(
+    asset_id="coffee:origin:india:robusta",
+    domain="coffee",
+    asset_type="origin",
+    name="India Robusta (Karnataka)",
+    unit="inr_per_50kg",
+    metadata={
+        "country": "India",
+        "species": "robusta",
+        "regions": ["kodagu"],
+        "growing_system": "shade_grown",
+        "price_series": (
+            "Genuine India-origin: 'Raw Coffee Price (Karnataka)' Parchment/Cherry "
+            "grades from coffee_board_india_price.py (Coffee Board of India's Daily "
+            "Market Report archive, 2012-present). Task 0's original audit found no "
+            "usable India-origin source and fell back to a WB global-benchmark proxy "
+            "— superseded once the real Coffee Board archive was found; see "
+            "docs/india_origin_signal_plan_v2_full_build.md"
+        ),
+    },
+)
+
+INDIA_PRODUCTION = Asset(
+    asset_id="coffee:supply:india:production",
+    domain="coffee",
+    asset_type="supply_signal",
+    name="India Coffee Production — National + District Estimates",
+    unit="metric_tons",
+    metadata={
+        "source": "Coffee Board of India — semiannual 'Database on Coffee' PDF circular",
+        "url": "https://coffeeboard.gov.in/database-coffee.html",
+        "description": (
+            "National and district-level (Chikkamagaluru, Kodagu, Hassan, Wayanad, "
+            "Travancore, Nilliampathy + Tamil Nadu districts) production estimates "
+            "in metric tons, by species. Each observation is dated to its own "
+            "report's publication month and carries that report's own newest "
+            "marketing-year column — vintage-aware, mirrors usda_coffee_wmt.py's "
+            "no-look-ahead approach rather than USDA PSD's always-latest-revised one."
+        ),
+    },
+)
+
+CHIRPS_KODAGU = Asset(
+    asset_id="climate:chirps:kodagu",
+    domain="coffee",
+    asset_type="climate_signal",
+    name="CHIRPS Rainfall — Kodagu (India Arabica/Robusta)",
+    unit="mm",
+    metadata={
+        "source": "UCSB CHIRPS via Google Earth Engine",
+        "gee_collection": "UCSB-CHG/CHIRPS/PENTAD",
+        "region": "FAO GAUL level-2 ADM2_NAME='Kodagu'",
+        "description": (
+            "Monthly area-mean precipitation (mm) over Kodagu, India's largest "
+            "coffee district (~30% of national output, both Arabica and Robusta "
+            "grown there). Below-normal rainfall during the Feb-Mar blossom "
+            "shower window threatens flowering and is bullish for price. Returns "
+            "raw monthly rainfall; anomaly and risk are derived downstream, "
+            "mirroring CHIRPS_MINAS."
+        ),
+    },
+)
+
+CHIRPS_CHIKMAGALUR = Asset(
+    asset_id="climate:chirps:chikmagalur",
+    domain="coffee",
+    asset_type="climate_signal",
+    name="CHIRPS Rainfall — Chikmagalur (India Arabica/Robusta)",
+    unit="mm",
+    metadata={
+        "source": "UCSB CHIRPS via Google Earth Engine",
+        "gee_collection": "UCSB-CHG/CHIRPS/PENTAD",
+        "region": "FAO GAUL level-2 ADM2_NAME='Chikmagalur'",
+        "description": (
+            "Monthly area-mean precipitation (mm) over Chikmagalur, India's "
+            "second-largest coffee district by production (~85,155 MT in "
+            "2023-24 per coffee_board_india_supply.py, vs Kodagu's 132,620 MT). "
+            "GAUL's own spelling is 'Chikmagalur' — differs from Coffee Board's "
+            "'Chikkamagaluru' (see coffee_board_india_supply.py's _REGION_ALIASES). "
+            "Part of the production-weighted multi-district climate signal — see "
+            "chirps_india.py's district parameter."
+        ),
+    },
+)
+
+CHIRPS_HASSAN = Asset(
+    asset_id="climate:chirps:hassan",
+    domain="coffee",
+    asset_type="climate_signal",
+    name="CHIRPS Rainfall — Hassan (India Arabica/Robusta)",
+    unit="mm",
+    metadata={
+        "source": "UCSB CHIRPS via Google Earth Engine",
+        "gee_collection": "UCSB-CHG/CHIRPS/PENTAD",
+        "region": "FAO GAUL level-2 ADM2_NAME='Hassan'",
+        "description": (
+            "Monthly area-mean precipitation (mm) over Hassan, India's third "
+            "coffee district by production (~36,800 MT in 2023-24 per "
+            "coffee_board_india_supply.py). Part of the production-weighted "
+            "multi-district climate signal — see chirps_india.py's district "
+            "parameter."
+        ),
+    },
+)
+
+FX_USD_INR = Asset(
+    asset_id="fx:usd_inr",
+    domain="coffee",
+    asset_type="fx_signal",
+    name="USD/INR Exchange Rate",
+    unit="inr_per_usd",
+    metadata={
+        "source": "Yahoo Finance",
+        "ticker": "INR=X",
+        "description": (
+            "Used to express India origin prices comparably to the "
+            "USD-denominated global benchmark. Not an input to the composite "
+            "formula itself (price_position and climate_risk are both "
+            "currency-invariant) — card-copy framing only."
+        ),
+    },
+)
+
 ALL_ASSETS: list[Asset] = [
     BRAZIL_ARABICA,
     COLOMBIA_ARABICA,
@@ -197,4 +342,11 @@ ALL_ASSETS: list[Asset] = [
     USDA_STU,
     USDA_STU_VINTAGE,
     CHIRPS_MINAS,
+    INDIA_ARABICA,
+    INDIA_ROBUSTA,
+    INDIA_PRODUCTION,
+    CHIRPS_KODAGU,
+    CHIRPS_CHIKMAGALUR,
+    CHIRPS_HASSAN,
+    FX_USD_INR,
 ]

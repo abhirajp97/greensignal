@@ -157,9 +157,15 @@ production design is a deliberately deferred decision, not an oversight.
 - **`enso_risk_score(oni)`:** Linear, clamped `max(0, min(1, 0.5 + oni/3.0))`. ONI ≥ +1.5 → risk=1.0 (strong El Niño); ONI=0 → risk=0.5 (neutral); ONI ≤ −1.5 → risk=0.0 (strong La Niña). **El Niño (positive ONI) drives higher supply risk** — it droughts Vietnam + Indonesia robusta at flowering (the largest producers by volume) and stresses parts of Brazil, with the shortfall reaching market ~12–16 months later. This **corrects the original inverted thesis** ("La Niña causes Brazil/Vietnam drought") — the sign was flipped. ENSO effects are origin-specific (see `docs/enso_coffee_country_matrix.html`): El Niño hurts SE-Asia robusta but is *beneficial* for Colombia and roughly neutral/mildly-positive for Brazil arabica (frost avoidance), so net |r| stays modest (~0.3) and the signal is a low-weight amplifier, not a standalone timing signal.
 - Apply a **~14m lead** (not 18–24m) before correlating with Arabica prices. The signal is against **forward** YoY price change: high ONI now → price up ~14m later. The strong *contemporaneous* negative r(ONI, price) ≈ −0.34 is a lead/lag artifact of ENSO's quasi-periodicity (La Niña follows the El Niño that caused the shortage) — do **not** read it as "La Niña → high prices". Validated in notebook 02: r=+0.288 @15m (KC 2010–24) / +0.327 @15m (WB 2000–24, p=1.4e-8); event study El Niño months → +36.5% fwd-12m vs La Niña −1.7% (t=5.83).
 
-**World Bank Pink Sheet (physical coffee prices):** Free, no auth. Source file `world_bank_commodity.py`. Two-step fetch: (1) GET `https://www.worldbank.org/en/research/commodity-markets` to scrape the current Excel download URL (URL embeds a monthly hash — cannot be hardcoded); (2) download and parse `CMO-Historical-Data-Monthly.xlsx`, sheet `Monthly Prices`. Series `COFFEE_ARABIC` (Other Mild Arabicas — proxy for ICO Arabica indicator; Colombia, Kenya, Tanzania washed coffees) and `COFFEE_ROBUS` (Robusta — proxy for ICO Robusta indicator). Source units are USD/kg; always convert to USc/lb (× 100/2.20462 = × 45.3592) for consistency with KC=F. Column header row is index 6 (machine codes) — locate columns dynamically, never hardcode positions. Date format: `"YYYYMmm"` (e.g. `"2026M04"`) → last day of that month. NaN values = data not yet published for that month — skip silently (not a parse error). **pandas quirk:** when reading the code-row with `df.iloc[6].astype(str)`, columns whose dtype is `float64` (because rows above them had NaN) keep `np.float64(nan)` as actual floats even after `astype(str)`; always do `df.iloc[row].fillna("").astype(str)` before string comparisons. Assets: `WB_ARABICA_BENCHMARK` (`coffee:benchmark:wb:arabica`) and `WB_ROBUSTA_BENCHMARK` (`coffee:benchmark:wb:robusta`) in `domains/coffee/registry/assets.py`.
+**World Bank Pink Sheet (physical coffee prices):** Free, no auth. Source file `world_bank_commodity.py`. Two-step fetch: (1) GET `https://www.worldbank.org/en/research/commodity-markets` to scrape the current Excel download URL (URL embeds a monthly hash — cannot be hardcoded); (2) download and parse `CMO-Historical-Data-Monthly.xlsx`, sheet `Monthly Prices`. Series: Arabica (Other Mild Arabicas — proxy for ICO Arabica indicator; Colombia, Kenya, Tanzania washed coffees) and Robusta (proxy for ICO Robusta indicator). Source units are USD/kg; always convert to USc/lb (× 100/2.20462 = × 45.3592) for consistency with KC=F. **Header-row count is not stable — confirmed drift, not hypothetical:** WB dropped the machine-code header row entirely in a 2026-07-02 update (previously row 4 = human name, 5 = unit, 6 = machine code, data from row 7; now row 4 = human name, 5 = unit, data from row 6 — one row earlier, no advance notice). Found live while auditing India price sources (see `docs/india_origin_signal_plan_v2_full_build.md`) — the hardcoded-row-index version silently returned zero observations. Fixed to locate the first data row dynamically (first row whose column 0 matches the `"YYYYMmm"` pattern) and search every row above it for a target series label, matching either the legacy machine code (`COFFEE_ARABIC`/`COFFEE_ROBUS`) or the current human-readable name (`"Coffee, Arabica"`/`"Coffee, Robusta"`) — never hardcode row indices for this file. Date format: `"YYYYMmm"` (e.g. `"2026M04"`) → last day of that month. NaN values = data not yet published for that month — skip silently (not a parse error). **pandas quirk:** when reading a header row with `df.iloc[row].astype(str)`, columns whose dtype is `float64` (because rows above them had NaN) keep `np.float64(nan)` as actual floats even after `astype(str)`; always do `df.iloc[row].fillna("").astype(str)` before string comparisons. `MarketObservation.raw` carries whichever label matched as `"wb_series"` (renamed from `"wb_code"` since it may now hold a name, not a code). Assets: `WB_ARABICA_BENCHMARK` (`coffee:benchmark:wb:arabica`) and `WB_ROBUSTA_BENCHMARK` (`coffee:benchmark:wb:robusta`) in `domains/coffee/registry/assets.py`.
 
 **CHIRPS (Brazil):** Source file `chirps.py`. Uses `earthengine-api` (now a main dep). GEE auth: interactive `earthengine authenticate` (cached at `~/.config/earthengine/`) + Cloud project in env **`EARTHENGINE_PROJECT`** (ours: `western-plate-432020-t5`) — `ee.Initialize(project=...)` requires a project since 2023. Collection `UCSB-CHG/CHIRPS/PENTAD` (select `precipitation`), clipped to the **FAO GAUL level-1 polygon** `ADM1_NAME == "Minas Gerais"` (true state shape, better than the rectangular bbox in `regions.py`), `scale=5566` m. All ee interaction is isolated in `_query_monthly_precip` (one server-side `map` + a single `getInfo()`); aggregate pentads to monthly **sums**, then `reduceRegion` mean over the polygon. `fetch(start, end)` returns RAW monthly area-mean rainfall (mm) anchored to month-end (asset `climate:chirps:minas_gerais`, `feature_name="precip_mm"`) — anomaly/risk derived downstream, like ENSO. `drought_risk_score(anomaly_mm, is_flowering_season)` rises as rainfall falls below normal (full risk at −60 mm; off-season halved); `is_flowering_month` = Sep–Nov. Climatology check confirms correct extraction: wet Nov–Mar (~200 mm), dry Jun–Aug (~10 mm). Fallback `load_from_netcdf(path)` reads a direct NetCDF from `data.chc.ucsb.edu` (no GEE), lazy-imports `xarray` (not a hard dep) and raises a clear ImportError if absent.
+
+**CHIRPS (India, Kodagu):** Source file `chirps_india.py` — a new module, not a parameterized `chirps.py` (that file backs the validated, live Brazil composite; refactoring tested/working code for marginal reuse wasn't worth the risk). Same GEE query logic, different constants: **FAO GAUL level-2** `ADM2_NAME == "Kodagu"` (district, not state — confirmed live-resolvable: `ADM0=India, ADM1=Karnataka, ADM2=Kodagu`), asset `climate:chirps:kodagu`. **Species-specific flowering windows** — `is_flowering_month(month, species)` requires `species` explicitly (no default): Robusta `{2, 3}` (pre-monsoon blossom showers late Feb-mid Mar), Arabica `{4, 5}` (needs rain by mid-April) — verified against real agronomy sources; do NOT use one shared window for both species (an earlier version of this file did) or reuse Brazil's Sep–Nov. **Live-only GEE bug found and fixed:** `reduceRegion().get("precipitation", default)` still raises `Dictionary.get: Dictionary does not contain key` even with a `default` argument if that default is `None` — GEE's own docs note "unless it is null" the default is ignored. Only surfaces for months with no CHIRPS coverage yet (e.g. fetching up to `date.today()`); `chirps.py`'s Brazil backtest never hit this since it only ever queried a fixed 2010–2024 window. Fixed with a real sentinel (`_NO_DATA_SENTINEL = -9999.0`) mapped back to `None` in `_precip_or_none()`.
+
+**Coffee Board of India daily price (`coffeeboard.gov.in`):** Source file `coffee_board_india_price.py`. Live domain is `coffeeboard.gov.in` — **not** `indiacoffee.org` (dead; a first pass at this source wrongly concluded no India price source existed because it only tried that domain). Free, no auth, but the Daily Market Report archive is a **stateful ASP.NET WebForms flow**, not a simple URL: GET `Market_Info.aspx` → POST with `__EVENTTARGET=lbnarchives` (cross-page post) → `Market_Info_Archives.aspx` (a year × month `GridView1` grid, 2012–present) → POST selecting a month (control IDs are **not** a simple function of the year — e.g. 2020's column control is literally named `LinkButton64`, not `LinkButton2020`; parse the live grid's row/column structure every time, never construct control names algorithmically) → `Archives_Month.aspx` (a `DataList1` of archived days that month) → POST selecting a day → **the response body IS that day's PDF** (no separate download URL). Every step must carry forward the previous response's `__VIEWSTATE`/`__EVENTVALIDATION` hidden fields. `httpx.Client` needs `follow_redirects=True` explicitly (unlike `requests`, which follows redirects by default — this tripped up the first implementation). Extracts the **"Raw Coffee Price (Karnataka)"** table (`Ar.Pmt`/`Ar.Chy`/`Rob.Pmt`/`Rob.Chy`, ₹/50kg, as a `LOW - HIGH` range — `value` is the midpoint, `raw` carries the range) via a regex anchored on the table's own `"as on DD.MM.YYYY"` line, **not** the report's nominal date — the two can differ by several days. **Real cadence:** despite "daily" bulletins, this figure only updates ~weekly in practice (confirmed by observing identical values repeat across consecutive archived days) — dating to the table's own "as on" date makes duplicates collapse correctly rather than manufacturing fake daily noise. Real density starts **2014** (2012–2013 predate the table's consistent presence in the archive — near-zero rows). **Politeness:** paces day-level requests with a 2-second delay — a small government server, not a CDN; a full historical backfill is thousands of requests and takes hours by design. Assets: `INDIA_ARABICA` (`coffee:origin:india:arabica`), `INDIA_ROBUSTA` (`coffee:origin:india:robusta`).
+
+**Coffee Board of India production estimates (`coffeeboard.gov.in`):** Source file `coffee_board_india_supply.py`. Parses the semiannual **"Database on Coffee" PDF circular** (`database-coffee.html` — a simple static listing, ~62 editions back to Jan 2009, unpaginated unlike `usda_coffee_wmt.py`'s ESMIS archive). Anchors on the stable phrase `"Production of Coffee in Major States/Districts"` (the leading section number drifts — 1.6 in 2013/2016, 1.7 in 2022, 1.8 in 2024 — same class of drift as `usda_coffee_wmt.py`). Unlike that PDF, this one has a genuine extractable table grid — `pdfplumber.extract_tables()` parses it cleanly, no text-position heuristics needed. Takes the **newest (leftmost) marketing-year column** per report as that report's point-in-time vintage observation (mirrors `usda_coffee_wmt.py`'s no-look-ahead discipline, not USDA PSD's always-latest-revised one). Report date comes from the cover page's own stated month/year (e.g. "January 2013") — some editions duplicate characters from a bold-font extraction quirk (e.g. "JJuunnee // JJuullyy 2016"); collapse repeated character runs before matching month names, and take the later month if two are mentioned. District name footnote markers vary (`"Kodagu #"` vs `"Kodagu *"`) — strip either. **`FeatureObservation` has no metadata field** (only `asset_id`/`observed_date`/`feature_name`/`value`/`source`) — region and species are encoded directly into `feature_name` (e.g. `"production_mt:kodagu:arabica"`, `"production_mt:india:total"` for the national Grand Total row) rather than adding many new per-district registry assets. One entry (Oct 2013 "Part II") is genuinely mislinked on the government site itself (`Pasupathi/` instead of `Database/` in the URL) — a real typo, not a bug here; degrades that one report to a download failure (PARTIAL run). Asset: `INDIA_PRODUCTION` (`coffee:supply:india:production`).
 
 **CFTC COT:** Source file `cot.py`. Use the **disaggregated** report (not legacy) for the "Managed Money" breakdown. Annual futures-only ZIPs at `https://www.cftc.gov/files/dea/history/fut_disagg_txt_{year}.zip`, each containing one CSV (`f_year.txt` — locate by `.txt` suffix, do not hardcode the member name). No auth. Columns: `Market_and_Exchange_Names` (filter rows containing `COFFEE C - ICE`), the weekly Tuesday report date (**column name varies by vintage** — pre-2013 it is `Report_Date_as_MM_DD_YYYY`, 2013+ it is `Report_Date_as_YYYY-MM-DD`; *both carry ISO `YYYY-MM-DD` values* despite the older header, so match the common `Report_Date_as_` prefix and let `pd.to_datetime` parse — matching only `Report_Date_as_YYYY` silently drops 2010–2012), `M_Money_Positions_Long_All`, `M_Money_Positions_Short_All`. Read with `low_memory=False` (100+ columns, mixed dtypes in unused trader-count fields). The disaggregated report does not exist before 2010 — `fut_disagg_txt_2008.zip` / `2009` return HTTP 404 (handled as PARTIAL). Net managed-money = long − short. `fetch(start, end)` downloads one ZIP per calendar year in range and returns raw weekly `FeatureObservation`s (`feature_name="managed_money_net"`, asset `coffee:cot:kc`, type `positioning_signal`); a single year's HTTP/archive failure yields a PARTIAL run (not FAILED) as long as another year returns data. **Month-end alignment is a downstream/backtest concern, not the source's** — the source stays faithful to the native weekly cadence (mirrors ENSO returning raw ONI before lagging). `_cot_index(series, window=156)` returns a **0–100** rolling index `100 × (val − min) / (max − min)`; a flat trailing window (max == min) maps to 50 (neutral), not NaN. `cot_contrarian_signal(idx)`: +1 if idx < 25 (specs crowded short → buy), −1 if idx > 75 (crowded long → caution), else 0.
 
@@ -292,13 +298,175 @@ The first version of notebook 06 passed its gate (discrete "forward prescience a
 
 ---
 
+## India Origin Signal (Arabica + Robusta, Karnataka) — Parallel Track, Own Gate
+
+Built end-to-end (branch `feat/india-origin-signal`) as a second origin, separate
+from and not blocking the notebook 06 anomaly reconciliation above. Full writeup:
+`docs/india_origin_signal_plan_v2_full_build.md` (§12 is the current authoritative
+state — §1-11 is an earlier pass whose price-source conclusion turned out to be
+wrong, corrected below). Motivation: an easier potential sales inroad for demoing
+GreenSignal to Indian roasters.
+
+**Status: real India-origin data throughout (price, supply, climate); gate still
+FAILS, honestly diagnosed rather than reframed.** First pass settled for a World
+Bank global-benchmark price proxy after `indiacoffee.org` proved unreachable and
+got an expected FAIL. Told explicitly not to settle for a proxy or self-impose
+artificial timelines, a second pass found the real thing: **Coffee Board of
+India's actual live domain is `coffeeboard.gov.in`**, not `indiacoffee.org`. It
+publishes a genuine daily "Raw Coffee Price (Karnataka)" series and a semiannual
+production-estimate circular — both now real, tested production sources, no
+proxy needed.
+
+- **`domains/coffee/sources/coffee_board_india_price.py`** — scrapes
+  `coffeeboard.gov.in`'s Daily Market Report archive, a stateful ASP.NET WebForms
+  flow (page → postback → year/month grid → postback → day list → postback →
+  that day's PDF as the POST response body). Extracts the "Raw Coffee Price
+  (Karnataka)" table (Arabica/Robusta, Parchment/Cherry, ₹/50kg, as a low-high
+  range). Paced deliberately (2s between requests — small government server) and
+  resumable. **Real cadence discovery:** despite "daily" bulletins, the figure
+  only updates ~weekly in practice (confirmed by observing identical values
+  repeat across consecutive archived days) — each observation is dated to the
+  table's own "as on" date, so this collapses correctly rather than manufacturing
+  fake daily noise. Real density starts 2014 (2012-2013 predate the table's
+  consistent presence). Full backfill: 9,217 raw observations, 2012-2026.
+- **`domains/coffee/sources/coffee_board_india_supply.py`** — parses
+  `coffeeboard.gov.in`'s semiannual "Database on Coffee" PDF circular (~62
+  editions back to 2009, static listing, no pagination) for district + national
+  production estimates. `pdfplumber.extract_tables()` parses this cleanly (a
+  real structured grid, unlike `usda_coffee_wmt.py`'s PDF which needs
+  text-position heuristics). Vintage-aware like `usda_coffee_wmt.py` — each
+  report's own newest marketing-year column is used, not a later revision.
+  `FeatureObservation` has no metadata field, so region+species are encoded into
+  `feature_name` (e.g. `"production_mt:kodagu:arabica"`). Full backfill: 1,289
+  observations, 2010-2024 (PARTIAL — one report mislinked on the government site
+  itself, "Pasupathi/" instead of "Database/" in the URL; a real, harmless typo).
+- **Climate leg corrected to species-specific windows:** `chirps_india.py`
+  originally used one Feb-Mar window for both species (copied from the generic
+  agronomy template) — verified against real sources to be wrong for Arabica.
+  `is_flowering_month(month, species)` now requires species explicitly: Robusta
+  `{2, 3}` (pre-monsoon blossom showers late Feb-mid Mar), Arabica `{4, 5}`
+  (needs rain by mid-April, roughly a month later).
+- **Notebook 09 gate FAILS on real data too — but a different, more diagnosed
+  result than the proxy-based FAIL.** Annual r(flowering SPI-3 deficit, fwd
+  price) ≥ +0.30 bar: **Robusta r=−0.357 at 12m (n=12)** — wrong-signed at every
+  horizon tested from 3-24 months (a lag sweep, not just one fixed horizon).
+  **Arabica r=−0.038 at 12m (n=12)** — much closer to zero than the proxy test's
+  −0.214, and turns positive at longer horizons (24m: +0.179, echoing L1's own
+  24m mean-reversion finding), but still short of the bar. Supply (production
+  YoY) vs fwd-6m price: r=−0.110, p=0.564, n=30 — no standalone relationship.
+  **`price_position_52w`'s own sanity check passes cleanly for both species**
+  (BUY-zone avg < ALL avg < CAUTION-zone avg, monotone) — the price data and
+  feature engineering are sound; it's specifically the climate/supply-to-price
+  mechanism under test that doesn't clear its gate. See notebook 09 §6 for the
+  full diagnostic writeup (lag sweep, standalone supply test, sanity check) and
+  plausible unconfirmed explanations (n=12 is thin; Kodagu-only vs. a
+  production-weighted multi-district signal is untried; India price may be
+  dominated by factors — global pass-through, currency, domestic policy — this
+  composite doesn't model).
+- **Composite runs live for demo purposes** (`generate_india_signal()`,
+  confidence set to 0.3 — lower than a merely-untested proxy would warrant, since
+  this is now a climate mechanism tested on real data that didn't clear its
+  gate) — suitable for showing product mechanics and UI/copy shape to
+  stakeholders, **explicitly not** as a validated India timing signal.
+- **Three live-only bugs found and fixed along the way** (all real production
+  bugs, not India-specific in cause): World Bank's Pink Sheet Excel format drift
+  (see `world_bank_commodity.py` above), a GEE `Dictionary.get` default-value gap
+  (see `chirps_india.py` above), and an `httpx.Client` redirect-following default
+  that differs from `requests`' (the new India price source needed
+  `follow_redirects=True` explicitly).
+- **Both flagged follow-up experiments now closed out, same session, real
+  negative results (notebook 09 §4c-4d; full writeup in plan doc §13):**
+  - **Production-weighted multi-district climate signal** — `chirps_india.py`
+    extended with a `district` parameter (Kodagu/Chikmagalur/Hassan), weighted
+    by each district's production share (52%/33%/14%). **Does not rescue the
+    signal**: Robusta improves marginally but stays wrong-signed (r=−0.357 →
+    −0.285, still FAIL); Arabica moves toward zero (r=−0.038 → −0.016, still
+    FAIL). Weak evidence against "wrong district" as the primary cause — the
+    climate mechanism itself, not the district chosen, looks like the bigger
+    issue.
+  - **Arabica 24m hint robustness check** — leave-one-out on the r=+0.179 @
+    24m figure ranges **[−0.065, +0.395]** (sign flips depending on which year
+    is excluded); 5,000-resample bootstrap 90% CI is **[−0.356, +0.622]**
+    (spans both zero and the gate). **Conclusion: the 24m hint was noise, not
+    a real weak effect** — n=12 carries almost no statistical information here;
+    only new years of price history, not cleverer analysis, can move it.
+- **A real data-quality bug found and fixed:** `coffee_board_india_supply.py`
+  district rows were splitting into duplicate series for the same real
+  district due to spelling drift across PDF editions ("Chikkamagaluru" vs
+  "Chikmagalur", "Wyanad" vs "Wayanad", "Orissa" vs "Odisha" — the last a
+  genuine 2011 state rename). Fixed with a `_REGION_ALIASES` map in
+  `_region_slug()`; deliberately did **not** merge "Andhra Pradesh" with
+  "Andhra Pradesh & Orissa" (older editions genuinely combine two states into
+  one row — a structural difference, not a spelling variant).
+- **A real external incident, handled without cutting a security corner:**
+  mid-session, re-fetching the full supply backfill failed with
+  `CERTIFICATE_VERIFY_FAILED` — `coffeeboard.gov.in`'s TLS cert expires
+  2026-07-22 (confirmed via direct `openssl` inspection), the same day, and
+  the site was unreachable over both HTTPS and HTTP. A caching-script mistake
+  compounded this: the re-fetch's empty result was written over the
+  previously-good 1,289-observation supply CSV without checking success
+  first, destroying it (git-untracked, unrecoverable). **Bypassing SSL
+  certificate verification to force the fetch through was explicitly rejected**
+  as a workaround — that trades a data-loss problem for a MITM/data-integrity
+  risk. Recovered instead by re-parsing 4 locally-cached PDF editions into a
+  reduced 168-observation snapshot (sufficient for the district-weight
+  experiment above, not for the full national YoY test's original power).
+  **A full 62-report re-backfill is still needed once the site's certificate
+  is renewed** — a genuine, external, currently-blocked follow-up.
+- **Global pass-through + FX decomposition (2026-07-28) — resolves *why* the
+  climate gate fails, not just *that* it fails.** External review diagnosed the
+  structural reason before this ran: India produces ~3.5% of world coffee and
+  exports most of it — a price taker, not a price setter — so the causal arrow
+  should run from the global benchmark + FX into India's price, not from local
+  weather into price. Tested directly in notebook 09 §6-7:
+  `log(india_price) ~ log(global_price) + log(usd_inr)` (World Bank Pink Sheet
+  benchmark reused from notebook 07's cache; USD/INR via `yfinance`, notebook
+  08's already-validated fetch pattern) — **R²=0.887 (Robusta) / 0.962
+  (Arabica)**, both FX coefficients positive as expected and highly significant
+  (p<0.001). Global pass-through + FX explains 89-96% of India's domestic
+  price — not a partial explanation, close to the whole story.
+  **Residual re-test** (same ≥+0.30 gate against the pass-through residual,
+  not raw price) still FAILS for both species: Arabica r=+0.033 (indistinguishable
+  from zero); **Robusta r=−0.587 (p=0.045, n=12) — more significant AND more
+  wrong-signed than the raw-price test**, stable across the 6-24m lag sweep. Read
+  plainly, a wetter (not drier) Robusta flowering season associates with a
+  *higher* pass-through-adjusted price a year-plus later — a genuinely
+  surprising result, reported as such rather than explained away; it argues for
+  "this climate construction doesn't capture the right mechanism," not just
+  "needs more data." **Product-narrative implication:** a validated India
+  signal is far more accurately framed as global-price-plus-FX than a
+  local-climate timing signal — materially different from `generate_india_signal()`'s
+  current 2-input composite, feeding into the still-pending card-copy review.
+  Two items remain deliberately out of scope (larger, separate passes):
+  discrete regulatory/policy event dummies (EUDR, India-EFTA) and
+  harvest-window (Nov-Feb) rainfall as a different climate pathway from the
+  flowering-window SPI-3 already built.
+
+---
+
 ## Build Sequence
 
 1. ✅ Real data pipelines for L1 (ICE KC), L2b (ENSO), L5 (COT) — no GEE needed
 2. ✅ Add USDA PSD (L2a) from bulk CSV
 3. ✅ Add CHIRPS (L3) via GEE (project `western-plate-432020-t5`)
 4. ✅ Composite backtest (notebook 06) on real data, **rebuilt once** — first version passed on a discrete, thin-sample metric; rebuilt around a continuous cost-improvement gate + rolling-24m normalization to match the product's always-on design. PASSES: walk-forward +5.86% (beats L1-alone's +3.71%). Two anomalies flagged, not resolved (§7/§8 disagreements, see above); L2a's stress-score input needs rebuilding off the true-vintage series before final weights
-5. ← **NEXT:** Reconcile the notebook 06 §7/§8 anomalies, rebuild `stu_stress` off the true-vintage series and re-run the L2a ablation, then production wiring: `core/services/recommendation_engine.py::build_recommendation` (stub — include the rolling-24m normalization), `climate_features.py::climate_risk_score`'s weights (currently hardcoded Phase 0), `domains/coffee/models/risk_scorer.py` (stub), promote `stu_risk_score`/`enso_lagged`/the SPI drought score into production feature files. Confirm which composite formula is being wired first — multiple collaborators are exploring different designs (see composite section above)
+5. ← **NEXT:** Reconcile the notebook 06 §7/§8 anomalies, rebuild `stu_stress` off the true-vintage series and re-run the L2a ablation, then finish production wiring: `climate_features.py::climate_risk_score`'s weights (currently hardcoded Phase 0), `domains/coffee/models/risk_scorer.py` (stub), promote `stu_risk_score`/`enso_lagged`/the SPI drought score into production feature files. `core/services/recommendation_engine.py::build_recommendation` is no longer a stub — implemented as part of the India origin signal work below (origin-agnostic, used by both Brazil's `generate_signal()` and India's `generate_india_signal()`) — **but it does not yet include the rolling-24m normalization** the continuous-signal rebuild above validated; add that before treating the formula as final. Confirm which composite formula is being wired first — multiple collaborators are exploring different designs (see composite section above). **This step also unblocks a deferred India validation**: once this composite produces real historical recommendations, its forecasting transferability to India (translating through the §14 pass-through equation, not just the contemporaneous fit already proven) can finally be tested — see `docs/india_origin_signal_plan_v2_full_build.md` §15 and `docs/NEXT_STEPS.md`
 6. Independent engineering work (can parallelize): `core/storage/repositories.py` (stub — nothing is currently persisted despite 6 working sources) + job wiring, `margin_features.py`
 7. FastAPI layer with core route structure
 8. React frontend: signal cards, price chart, margin calculator
+
+**Parallel track — India origin signal (Arabica + Robusta, Kodagu):** built in a
+separate sprint (`feat/india-origin-signal`), reusing this build sequence's Brazil
+infrastructure rather than replicating it. See "India Origin Signal" section above
+for the full status — summary: real India-origin price, supply, and climate data
+throughout (no proxy); registry, `chirps_india.py` (now multi-district),
+`build_recommendation`, and `generate_india_signal` are all real and running on
+live data; the notebook 09 backtest gate **FAILS for both species** on genuine
+India-origin data, and all three flagged follow-up experiments (multi-district
+weighting, Arabica 24m robustness, and global pass-through + FX decomposition)
+have since been run and closed out — the last of these explains *why* the
+first two failed: India's domestic price is 89-96% explained by global
+benchmark + FX pass-through, not local climate. This is a fully diagnosed
+methodology finding, not a data-availability gap. Not validated for
+roaster-facing promotion yet; full supply re-backfill blocked pending
+`coffeeboard.gov.in`'s TLS certificate renewal.

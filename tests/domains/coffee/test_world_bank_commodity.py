@@ -74,6 +74,44 @@ def _make_excel_bytes(rows: list[tuple]) -> bytes:
     return buf.getvalue()
 
 
+def _make_excel_bytes_no_code_row(rows: list[tuple]) -> bytes:
+    """Build a Pink Sheet Excel matching WB's 2026-07-02 format: the machine-code
+    row is gone entirely, so data starts right after the unit row (index 5).
+    """
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Monthly Prices"
+
+    ws.append(["World Bank Commodity Price Data (The Pink Sheet)"])
+    ws.append(["monthly prices in nominal US dollars"])
+    ws.append([""])
+    ws.append(["Updated on July 02, 2026"])
+
+    # Row 5 (index 4): human-readable column names — the only label row now.
+    header_row = [""] * 14
+    header_row[12] = "Coffee, Arabica"
+    header_row[13] = "Coffee, Robusta"
+    ws.append(header_row)
+
+    # Row 6 (index 5): units — no machine-code row follows this.
+    unit_row = [""] * 14
+    unit_row[12] = "($/kg)"
+    unit_row[13] = "($/kg)"
+    ws.append(unit_row)
+
+    # Row 7 (index 6): data starts immediately, one row earlier than the old format.
+    for date_str, arabica, robusta in rows:
+        data_row = [""] * 14
+        data_row[0] = date_str
+        data_row[12] = arabica
+        data_row[13] = robusta
+        ws.append(data_row)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 def _mock_client(page_html: str, excel_bytes: bytes, page_status: int = 200,
                  excel_status: int = 200):
     """Build a mock httpx.Client that returns page HTML then Excel bytes."""
@@ -186,15 +224,46 @@ class TestFetchSuccess:
 
         assert all(o.observed_date == date(2024, 2, 29) for o in obs)
 
-    def test_raw_field_contains_wb_code_and_usd_kg(self):
+    def test_raw_field_contains_wb_series_and_usd_kg(self):
+        """The name row (4) precedes the legacy code row (6), so name wins."""
         excel = _make_excel_bytes([("2024M01", 4.50, 2.10)])
         with patch(_PATCH, _mock_client(_WB_PAGE_HTML, excel)):
             obs, _ = fetch(date(2024, 1, 1), date(2024, 12, 31))
 
         arabica = next(o for o in obs if "arabica" in o.asset_id)
-        assert arabica.raw["wb_code"] == "COFFEE_ARABIC"
+        assert arabica.raw["wb_series"] == "Coffee, Arabica"
         assert arabica.raw["usd_kg"] == 4.50
         assert arabica.raw["date_str"] == "2024M01"
+
+
+class TestFetchNewWbFormatNoCodeRow:
+    """Regression coverage for WB's 2026-07-02 format change (machine-code row
+    dropped entirely — discovered live while auditing India price sources)."""
+
+    def test_returns_two_observations_per_month(self):
+        excel = _make_excel_bytes_no_code_row([("2024M01", 4.50, 2.10)])
+        with patch(_PATCH, _mock_client(_WB_PAGE_HTML, excel)):
+            obs, run = fetch(date(2024, 1, 1), date(2024, 12, 31))
+
+        assert run.status == RunStatus.SUCCESS
+        assert run.records_fetched == 2
+        assert len(obs) == 2
+
+    def test_raw_series_label_is_the_human_name(self):
+        excel = _make_excel_bytes_no_code_row([("2024M01", 4.50, 2.10)])
+        with patch(_PATCH, _mock_client(_WB_PAGE_HTML, excel)):
+            obs, _ = fetch(date(2024, 1, 1), date(2024, 12, 31))
+
+        arabica = next(o for o in obs if "arabica" in o.asset_id)
+        assert arabica.raw["wb_series"] == "Coffee, Arabica"
+
+    def test_values_convert_correctly(self):
+        excel = _make_excel_bytes_no_code_row([("2024M01", 4.50, 2.10)])
+        with patch(_PATCH, _mock_client(_WB_PAGE_HTML, excel)):
+            obs, _ = fetch(date(2024, 1, 1), date(2024, 12, 31))
+
+        arabica = next(o for o in obs if "arabica" in o.asset_id)
+        assert abs(arabica.value - 4.50 * (100 / 2.20462)) < 0.01
 
 
 class TestFetchErrors:
