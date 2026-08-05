@@ -815,7 +815,7 @@ appropriate for a signed residual. `fwd12_from_month` and
   not flowering-window) rainfall as a structurally different climate pathway
   (berry drop / fungal disease during an already-picked-or-picking crop).
 
-## 15. Deferred — validating the global composite's *forecasting* transferability to India (not yet started)
+## 15. Validating the global composite's *forecasting* transferability to India — RUN, FAIL
 
 External review of §14 flagged a precise gap between what's proven and what a
 "translate the global signal into an India signal" product would need: §14's
@@ -884,19 +884,48 @@ experiments (§13, §14) aren't wasted effort toward that — they're what ruled
 out "local weather is the story" and correctly landed on "pass-through plus
 FX is the story," which is the piece that actually generalizes.
 
-**Status: flagged and scoped, not started.** Blocked on the global composite's
-production wiring (`CLAUDE.md` Build Sequence step 5) landing first — tracked
-in `docs/NEXT_STEPS.md`.
+**Status: RUN — FAIL, decisively and reportably.** The global composite's
+production wiring (`CLAUDE.md` Build Sequence step 5) landed
+(true-vintage L2a rebuild, finalized weights, `classify_normalized()`
+rolling-24m normalization), unblocking this test. Notebook 09 §10:
+**r(Brazil composite normalized_mult, fwd-12m India Arabica price) = −0.250**
+(p=0.005, n=127, 2014-06 to 2024-12), wrong-signed against the +0.30 gate —
+BUY months averaged −0.38% forward India price vs +17.71% for NEUTRAL and
++14.51% for CAUTION. An FX-adjusted version (isolating the coffee-only
+story from FX, answering the customer-definition question above
+empirically) gives nearly the same result (r=−0.235, p=0.008) — this is not
+primarily an FX-noise artifact masking a real coffee-timing signal.
+
+**Read plainly against §14, not smoothed over:** §14 proved India price
+*levels* move with global price + FX at the same time — that finding is
+untouched. This test proves that contemporaneous relationship does **not**
+mean the global composite's forward-looking BUY/CAUTION regime carries
+forecasting power for India price specifically. Likely explanation:
+adjustment lags or sticky domestic pricing at the India-origin level,
+decoupling *when* India price moves from what the level relationship alone
+would suggest — a real, distinct phenomenon, not a contradiction.
+
+**Product implication:** the "one global composite, translated per-origin"
+architecture this section flagged as the bigger prize does **not** hold for
+India via this route. A validated India timing signal, if one exists, needs
+its own independently-validated forecasting relationship — not a straight
+translation of Brazil's regime through the pass-through equation. This
+narrows what's still open (the India-customer-definition question above
+remains genuinely unresolved) rather than closing the India workstream
+entirely.
 
 ---
 
-*GreenSignal · India Origin Signal — Full Build Plan v2.5 · §15 flags (not yet
-started) the forecast-transferability test needed to move §14's contemporaneous
-pass-through finding into an actual India timing signal, plus the FX-as-
-first-class-variable and India-customer-definition questions it surfaces; §14
-tests and confirms external review's global-pass-through-plus-FX diagnosis of
-the climate gate's FAIL (2026-07-28); §13 closes out both follow-up experiments
-flagged in §12.8 and documents a district-alias bug fix plus an external
-TLS/data-loss incident (2026-07-22, same day as v2.2); §12 supersedes §1-11's
-price-source and gate-result claims (2026-07-22); v2.1 corrected v2 against
-repo state (2026-07-21); v2 itself superseded v1 (`india_origin_signal_plan.md`).*
+*GreenSignal · India Origin Signal — Full Build Plan v2.6 · §15 run to
+completion (2026-08-04): the forecast-transferability test FAILS, decisively
+and wrong-signed (r=−0.250, p=0.005) — India price levels track
+global-plus-FX (§14, unchanged) but the global composite's timing regime
+does not transfer to India price. Rules out the global-composite-translation
+route to an India timing signal specifically, narrows rather than closes the
+open questions §15 raised; §14 tests and confirms external review's
+global-pass-through-plus-FX diagnosis of the climate gate's FAIL
+(2026-07-28); §13 closes out both follow-up experiments flagged in §12.8 and
+documents a district-alias bug fix plus an external TLS/data-loss incident
+(2026-07-22, same day as v2.2); §12 supersedes §1-11's price-source and
+gate-result claims (2026-07-22); v2.1 corrected v2 against repo state
+(2026-07-21); v2 itself superseded v1 (`india_origin_signal_plan.md`).*
