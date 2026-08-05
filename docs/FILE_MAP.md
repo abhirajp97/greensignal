@@ -117,7 +117,7 @@ All models use `pydantic.BaseModel`. These are the objects that flow between eve
 |------|-----------------|--------|
 | `price_features.py` | `price_position_52w` (0–1), `yoy_price_change`, `price_momentum_12m` (context only — not a buy signal) | ✅ Done |
 | `supply_features.py` | `stu_risk_score` (STU % → 0–1 risk), `supply_regime` label. Notebook 04 validated a z-score-based stress score (`stu_z_score`, `stu_stress`) as the successor to the linear clamp — not yet promoted here, pending composite wiring (06) | 🔲 Stub |
-| `climate_features.py` | `enso_lagged` (~14m shift, El Niño lead), `climate_risk_score` (weighted sub-signal combination) | 🔲 Stub |
+| `climate_features.py` | `climate_risk_score` (weighted sub-signal combination) is ✅ implemented, weights now the real-data r-proportional split from notebook 06 §12 (`WEIGHTS` constant, L3 dominant at 0.625) — supersedes the Phase 0 fixed split. `enso_lagged` (~14m shift) is still 🔲 stub — the real, currently-used lag+score logic lives in `noaa_enso.enso_risk_score()` instead | 🔲 Mixed |
 | `margin_features.py` | `roaster_margin`, `forward_buy_saving` — dollar-impact numbers for roasters | 🔲 Stub |
 
 ### `domains/coffee/models/` — Signal assembly

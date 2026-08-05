@@ -106,13 +106,21 @@ The purchasing signal combines five independent signals. Simple averaging underp
 ```
 multiplier = (1.5 - price_position) × (1.0 + 0.65 × climate_risk_score)
 
-climate_risk_score = 0.38 × stu_risk
-                   + 0.24 × enso_risk
-                   + 0.22 × brazil_drought_risk
-                   + 0.16 × cot_contrarian_signal
+climate_risk_score = 0.201 × stu_risk
+                   + 0.142 × enso_risk
+                   + 0.625 × brazil_drought_risk
+                   + 0.031 × cot_contrarian_signal
 
 Output range: 0.4× (strong caution) → 2.3× (high conviction buy)
 ```
+
+**Weights updated from Phase 0's fixed 0.38/0.24/0.22/0.16 split** (notebook 06 §12,
+real-data r-proportional, derived on the true-vintage L2a frame — see the L2a row below
+and `climate_features.py::WEIGHTS`'s docstring for the full finding). `brazil_drought_risk`
+(L3) is now the dominant weight by a wide margin, a reversal from Phase 0's stu_risk-heaviest
+split — the true-vintage rebuild found L2a's real |r| against forward returns much weaker
+than assumed. Walk-forward cost improvement with these weights: **+4.45% (2017-2024, PASS
+vs the 3.0% gate)**.
 
 Price position drives timing. Supply/climate signals amplify conviction when they agree.
 
@@ -292,7 +300,7 @@ The first version of notebook 06 passed its gate (discrete "forward prescience a
 - **Spike avoidance confirmed directly:** the composite held a sustained BUY signal through most of Jan–Sep 2023 (price $146–190/lb), *before* the 2024 rally accelerated past $220/lb and kept climbing — a real instance of the "buy before the spike" behavior `docs/GreenSignal_Phase0_Report.md` §3.2 frames as the actual product story for smaller roasters.
 - **Two honest open anomalies, reported rather than smoothed over:** (1) the secondary (discrete, 3-state) prescience check shows BUY months *underperforming* CAUTION/NEUTRAL forward returns in this sample — tempered by using in-sample fixed weights rather than the walk-forward weights that pass the primary gate, and plausibly reflecting the 2023–2025 structural supply-shock rally where mean-reversion timing underperforms momentum; (2) the leave-one-out ablation **reverses sign for L5** vs. the original notebook (dropping `cot_momentum` now *helps* by +0.56pp, was −0.81pp) — which sub-signals earn their weight is sensitive to the validation metric and weighting scheme used, a reason to treat any single ablation result as provisional. L2b (`enso_risk`) remains the strongest contributor in both versions.
 - **Multiple collaborators are independently exploring different composite formulas right now** (see above) — this rebuild specifically validates and improves the multiplicative formula already implemented in `signal_generator.py`, not a claim that it's the converged team design.
-- `stu_stress` is still built on the PSD-**approximation** series (nb04's 12m-shift fallback), not the stronger **true-vintage** series (nb04's Gate 1 r=−0.488 vs the approximation's −0.312) — near-neutral to slightly negative contribution across both notebook versions' ablations. **Before finalizing L2a's composite weight, rebuild its risk score off the true-vintage series** (n=30 semiannual, needs its own small-n windowing) and re-run the ablation.
+- **Resolved — `stu_stress` rebuilt off the true-vintage series (notebook 04 §16, notebook 06 §11), and the result is a real negative finding, not the expected confirmation.** True-vintage `stu_stress` (window=6 small-n z-score, n=25 valid semiannual observations) is **wrong-signed** against `fwd_6m` (r=−0.135, vs the approximation's +0.262), and dropping it from the composite *improves* walk-forward cost improvement by +0.79pp — worse than the approximation's near-neutral −0.03pp. L2a still passes its own standalone gate against 12m-forward **price level** (r=−0.488) — genuinely different from the composite's 6m-forward-**return** ablation target, not a contradiction: stocks-to-use may validly track where price sits without predicting near-term moves. **Weights re-derived on the true-vintage frame and promoted into `climate_features.py::WEIGHTS`**: stu_risk 0.201 (down from Phase 0's 0.38), enso_risk 0.142, brazil_drought_risk 0.625 (now dominant), cot_contrarian 0.031. Walk-forward with final weights: +4.45% (2017-2024, PASS vs 3.0% gate).
 
 **Nasdaq Data Link CHRIS access:** CHRIS futures database requires a paid subscription. Production `ice_coffee_c.py` targets `CHRIS/ICE_KC1`; backtests use Yahoo Finance `KC=F` (same instrument). Activate paid plan before deploying the production ingestion job.
 
@@ -449,8 +457,9 @@ proxy needed.
 1. ✅ Real data pipelines for L1 (ICE KC), L2b (ENSO), L5 (COT) — no GEE needed
 2. ✅ Add USDA PSD (L2a) from bulk CSV
 3. ✅ Add CHIRPS (L3) via GEE (project `western-plate-432020-t5`)
-4. ✅ Composite backtest (notebook 06) on real data, **rebuilt once** — first version passed on a discrete, thin-sample metric; rebuilt around a continuous cost-improvement gate + rolling-24m normalization to match the product's always-on design. PASSES: walk-forward +5.86% (beats L1-alone's +3.71%). Two anomalies flagged, not resolved (§7/§8 disagreements, see above); L2a's stress-score input needs rebuilding off the true-vintage series before final weights
-5. ← **NEXT:** Reconcile the notebook 06 §7/§8 anomalies, rebuild `stu_stress` off the true-vintage series and re-run the L2a ablation, then finish production wiring: `climate_features.py::climate_risk_score`'s weights (currently hardcoded Phase 0), `domains/coffee/models/risk_scorer.py` (stub), promote `stu_risk_score`/`enso_lagged`/the SPI drought score into production feature files. `core/services/recommendation_engine.py::build_recommendation` is no longer a stub — implemented as part of the India origin signal work below (origin-agnostic, used by both Brazil's `generate_signal()` and India's `generate_india_signal()`) — **but it does not yet include the rolling-24m normalization** the continuous-signal rebuild above validated; add that before treating the formula as final. Confirm which composite formula is being wired first — multiple collaborators are exploring different designs (see composite section above). **This step also unblocks a deferred India validation**: once this composite produces real historical recommendations, its forecasting transferability to India (translating through the §14 pass-through equation, not just the contemporaneous fit already proven) can finally be tested — see `docs/india_origin_signal_plan_v2_full_build.md` §15 and `docs/NEXT_STEPS.md`
+4. ✅ Composite backtest (notebook 06) on real data, **rebuilt once** — first version passed on a discrete, thin-sample metric; rebuilt around a continuous cost-improvement gate + rolling-24m normalization to match the product's always-on design. PASSES: walk-forward +5.86% (beats L1-alone's +3.71%). Two anomalies flagged, not resolved (§7/§8 disagreements, see above)
+4a. ✅ **`stu_stress` rebuilt off the true-vintage series and L2a ablation re-run (notebook 04 §16, notebook 06 §11-§12)** — a real, reportable negative finding, not the hoped-for confirmation: true-vintage `stu_stress` is **wrong-signed** against `fwd_6m` (r=−0.135, vs the approximation's +0.262) and dropping it from the composite *improves* walk-forward cost improvement by +0.79pp — more than the approximation's near-neutral −0.03pp. L2a still passes its own standalone gate (12m-fwd **price level**, r=−0.488) — a genuinely different target than the composite's 6m-**forward-return** ablation, not a contradiction. **Weights re-derived and promoted into `climate_features.py::WEIGHTS`**: `stu_risk=0.201, enso_risk=0.142, brazil_drought_risk=0.625, cot_contrarian=0.031` (L3 now dominant, a reversal from Phase 0's stu_risk-heaviest split). Walk-forward with final weights: **+4.45% (2017-2024, PASS vs 3.0% gate)**
+5. ← **NEXT:** Reconcile the notebook 06 §7/§8 anomalies, implement `domains/coffee/models/risk_scorer.py` (stub), wire the rolling-24m normalization into `core/services/recommendation_engine.py::build_recommendation` (still doesn't include it — the continuous-signal rebuild validated it, but threading trailing-history state through this stateless function is a real design decision, not yet made). `core/services/recommendation_engine.py::build_recommendation` is no longer a stub — implemented as part of the India origin signal work below (origin-agnostic, used by both Brazil's `generate_signal()` and India's `generate_india_signal()`). Confirm which composite formula is being wired first — multiple collaborators are exploring different designs (see composite section above). **This step also unblocks a deferred India validation**: once this composite's rolling-24m normalization is wired, its forecasting transferability to India (translating through the §14 pass-through equation, not just the contemporaneous fit already proven) can finally be tested — see `docs/india_origin_signal_plan_v2_full_build.md` §15 and `docs/NEXT_STEPS.md`
 6. Independent engineering work (can parallelize): `core/storage/repositories.py` (stub — nothing is currently persisted despite 6 working sources) + job wiring, `margin_features.py`
 7. FastAPI layer with core route structure
 8. React frontend: signal cards, price chart, margin calculator
