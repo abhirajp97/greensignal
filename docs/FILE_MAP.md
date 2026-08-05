@@ -39,8 +39,11 @@ Every file in the repo, what it does, and its current status. Update this whenev
 | `coffee_intelligence_mvp.md` | MVP feature set, ROI case, technical architecture overview, build sequence. |
 | `greensignal_procurement_intelligence_architecture.md` | Full system architecture — repo structure, canonical objects, data flows, domain expansion design. |
 | `phase0_next_steps.md` | Per-signal data source documentation and agreed next steps coming out of Phase 0 review. |
-| `notebook_01_guide.md` | Reader's guide for notebook 01 (ICE KC price position signal) — section-by-section explanation, math, and key numbers. |
-| `notebook_03_guide.md` | Reader's guide for notebook 03 (CFTC COT signal) — section-by-section explanation, momentum vs contrarian thesis, and why COT works as a composite modifier not a standalone signal. |
+| `notebook_01_guide.md` | Reader's guide for notebook 01 (ICE KC price position signal) — section-by-section explanation, math, and key numbers, including the re-executed walk-forward result (78w window, +7.34% avg, 10/12 positive years). |
+| `notebook_02_guide.md` | Reader's guide for notebook 02 (NOAA ENSO ONI signal) — section-by-section explanation, the corrected El Niño thesis, and the walk-forward purchase simulation (isolated ENSO does not beat naive buying despite passing its correlation gate). |
+| `notebook_03_guide.md` | Reader's guide for notebook 03 (CFTC COT signal) — section-by-section explanation, momentum vs contrarian thesis, the existing multi-variant walk-forward plus the new canonical single-weight walk-forward, and why COT works as a composite modifier not a standalone signal. |
+| `notebook_04_guide.md` | Reader's guide for notebook 04 (USDA stocks-to-use signal) — section-by-section explanation of the price-level vs YoY-change gate mismatch; no walk-forward section yet (correlation/gate-validation notebook only). |
+| `notebook_05_guide.md` | Reader's guide for notebook 05 (CHIRPS Minas Gerais drought signal) — section-by-section explanation and the walk-forward purchase simulation that replaced the old (incorrectly lag-0) rolling-stability section. |
 
 ---
 
@@ -155,12 +158,12 @@ Empty — React + Vite scaffold deferred until data pipeline and signal are vali
 | Path | Purpose | Status |
 |------|---------|--------|
 | `coffee_backtests/README.md` | Pass/fail gates for each signal on real data. All notebooks must pass these before product work begins. | ✅ Done |
-| `coffee_backtests/01_ice_price_signal.ipynb` | L1: fetch real ICE KC data, validate price_position_52w correlation | ✅ Done (r=+0.852, saving=+10.73%, all gates PASS) |
+| `coffee_backtests/01_ice_price_signal.ipynb` | L1: fetch real ICE KC data, validate price_position_52w correlation; walk-forward re-executed (§4c) — 78w window wins, +7.34% avg saving, 10/12 positive years (2013–2024) | ✅ Done (r=+0.852, saving=+10.73%, all gates PASS) |
 | `coffee_backtests/07_wb_physical_prices.ipynb` | WB Arabica & Robusta L1 gates + basis analysis vs KC=F | ✅ Done (Arabica r=+0.835, Robusta r=+0.748, all gates PASS) |
-| `coffee_backtests/02_enso_signal.ipynb` | L2b: NOAA ONI backtest, corrected El Niño thesis; gate PASSES — r=+0.288 @15m lead (KC), +0.327 @15m (WB 2000–24, p=1.4e-8); event study El Niño→+36.5% fwd-12m vs La Niña −1.7%. Original sign+lag were backwards | ✅ Done |
-| `coffee_backtests/03_cot_signal.ipynb` | L5: CFTC COT backtest; gate FAILS (contrarian r=−0.05 @ fwd 12m); contrarian thesis inverted — managed money trend-follows (r=+0.14 @ fwd 3–6m); recommend revising L5 role or dropping | ✅ Done |
-| `coffee_backtests/04_usda_supply_signal.ipynb` | L2a: USDA world stocks-to-use backtest; YoY-change gate FAILS (r=−0.04) but signal strong on price level (r=−0.40 monthly, −0.56 annual, −0.59 @ 23m lag); recommend redefining L2a gate to price level (cf. L1) | ✅ Done |
-| `coffee_backtests/05_chirps_signal.ipynb` | L3: CHIRPS Minas Gerais drought backtest; gate narrowly FAILS (r=+0.10 @ 14m) but right sign/lag/mechanism, annual flowering r=+0.40; keep as low-weight flowering amplifier | ✅ Done |
+| `coffee_backtests/02_enso_signal.ipynb` | L2b: NOAA ONI backtest, corrected El Niño thesis; gate PASSES — r=+0.288 @15m lead (KC), +0.327 @15m (WB 2000–24, p=1.4e-8); event study El Niño→+36.5% fwd-12m vs La Niña −1.7%. Original sign+lag were backwards. Old gate-validation/event-study/risk-distribution sections replaced with a walk-forward purchase simulation (isolated ENSO): −0.07% avg saving, 8/15 positive years — correlation gate passing does not imply a standalone economic edge | ✅ Done |
+| `coffee_backtests/03_cot_signal.ipynb` | L5: CFTC COT backtest; gate PASSES on the corrected momentum framing (r=+0.144 @ fwd 6m); original contrarian thesis inverted — managed money trend-follows. Existing multi-variant walk-forward (§5) plus new canonical single-weight walk-forward (§7, replacing the old rolling-stability section): −2.26% avg saving, 1/12 positive years — momentum signal loses money against naive buying in this framework | ✅ Done |
+| `coffee_backtests/04_usda_supply_signal.ipynb` | L2a: USDA world stocks-to-use backtest; YoY-change gate FAILS (r=−0.04) but signal strong on price level (r=−0.40 monthly, −0.56 annual, −0.59 @ 23m lag); recommend redefining L2a gate to price level (cf. L1). No walk-forward section yet | ✅ Done |
+| `coffee_backtests/05_chirps_signal.ipynb` | L3: CHIRPS Minas Gerais drought backtest; gate narrowly FAILS (r=+0.10 @ 14m) but right sign/lag/mechanism, annual flowering r=+0.40; keep as low-weight flowering amplifier. Old (incorrectly lag-0) rolling-stability section replaced with a walk-forward purchase simulation (isolated drought risk): +1.01% avg saving, 8/15 positive years | ✅ Done |
 | `coffee_backtests/06_composite_backtest.ipynb` | Full composite: all signals combined, measure forward prescience | 🔲 Not created |
 | `coffee_data_validation/` | Exploratory data quality checks as each new source is pulled | 🔲 Empty |
 
@@ -177,4 +180,4 @@ Empty test directories — tests are written alongside each implementation.
 
 ---
 
-*Last updated: May 2026 — initial skeleton*
+*Last updated: 2026-08-04 — walk-forward purchase simulations added to notebooks 01 (re-executed), 02, 03, and 05; reader's guides added/updated for all five backtest notebooks (`docs/notebook_0{1..5}_guide.md`)*

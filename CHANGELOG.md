@@ -11,7 +11,25 @@ Versions are dated. Each entry covers what changed, why it matters, and who did 
 Planned but not yet merged to `main`:
 - Composite backtest (notebook 06) on real data — reweight now that L1, L2a (on level) and L2b (~14m El Niño lead) clear their gates
 - Redefine the L2a gate to price-level correlation (cf. L1)
-- Decide L5 composite role (momentum-confirmation vs drop)
+- Decide L5 composite role (momentum-confirmation vs drop) — the new walk-forward result below reinforces "drop or heavily discount as standalone timer"
+- Walk-forward purchase simulation for notebook 04 (L2a) — not yet added; the other four backtest notebooks now have one
+
+---
+
+## [0.16.0] — 2026-08-04
+
+### Added
+- **Walk-forward purchase simulations** for notebooks 02 (ENSO), 03 (COT), and 05 (CHIRPS) — the same design used in notebook 01: naive buying (equal monthly weight) vs. structured buying (purchase weight scaled by the signal, lagged by its own correlation-identified peak), evaluated year by year with no look-ahead. This gives all four signals a common, comparable economic test on top of their existing correlation gates.
+- `docs/notebook_02_guide.md`, `docs/notebook_04_guide.md`, `docs/notebook_05_guide.md` — new reader's guides, matching the existing `notebook_01_guide.md` / `notebook_03_guide.md` format (section-by-section explanation, formulas, results, key-numbers table).
+
+### Changed
+- `notebooks/coffee_backtests/01_ice_price_signal.ipynb` — re-executed end to end. §4c's walk-forward cells had empty saved outputs (never actually run in the committed file); the "+3.71% avg, 12/12 years" figure previously cited in `CLAUDE.md` and `docs/notebook_01_guide.md` was **not reproducible** from the notebook as saved. Real re-executed result: **78w window wins, +7.34% avg saving, 10/12 positive years** (52w: +6.05%/9-12; 104w: +6.75%/11-12). Both docs corrected to the real figures.
+- `notebooks/coffee_backtests/02_enso_signal.ipynb` — old "Gate Validation," "Extended Window (WB Arabica)," "Event Study," and "Risk Score Distribution" sections (Sec 5/5b/5c/6) removed and replaced with a single walk-forward purchase simulation (new Sec 5). Weight rule: `enso_risk_score(ONI lagged 15m)`. **Result: −0.07% avg saving, 8/15 positive years (2010–2024)** — ENSO alone does not produce a reliable economic edge despite passing its correlation gate (r=+0.288). Robustness check confirms this isn't a 2023–24 concentration artifact (+0.65% avg / 8-13 positive excluding those years — still weak).
+- `notebooks/coffee_backtests/03_cot_signal.ipynb` — old "Rolling Stability" section (Sec 7) replaced with a canonical single-weight walk-forward purchase simulation, alongside the notebook's existing multi-variant walk-forward (Sec 5, left untouched). Weight rule: `cot_index lagged 6m / 100`. **Result: −2.26% avg saving, 1/12 positive years (2013–2024)** — reinforces, with a cleaner design, the notebook's existing finding that a momentum signal loses money under this naive-vs-weighted-average framework (buying more into already-elevated prices).
+- `notebooks/coffee_backtests/05_chirps_signal.ipynb` — old "Rolling Stability" section (Sec 6) removed and replaced with a walk-forward purchase simulation. The removed section tested the **wrong lag** (contemporaneous, lag 0) against the notebook's own 14-month mechanistic claim — its "62% of windows positive" stat never actually spoke to the proposed signal. Weight rule: `drought_risk lagged 14m`. **Result: +1.01% avg saving, 8/15 positive years (2010–2024)** — marginally positive but not a reliable standalone edge. Sec 1 also gained a GEE-unavailable fallback (reads the cached `data/chirps_minas_monthly.csv` when `EARTHENGINE_PROJECT`/GEE auth isn't configured) so the notebook can still be executed and verified without live Earth Engine credentials.
+
+### Why it matters
+Every non-L1 signal now has a walk-forward result, not just a correlation gate — and the pattern across all three (ENSO, CHIRPS, COT) is consistent: **the correlation gate result does not predict the walk-forward result.** ENSO passes its gate but loses money standalone; CHIRPS fails its gate but is roughly breakeven standalone; COT passes its gate but loses money standalone (worst of the three). Only L1 clears both a correlation bar and a walk-forward economic bar (+7.34% avg, 10/12 positive years). This is the strongest evidence yet that L2b/L3/L5 belong in the composite as amplifiers on top of L1 — not as standalone timing signals — which is already how `CLAUDE.md` frames their weights, but is now backed by a consistent economic test rather than correlation alone. Also surfaced and fixed a real reproducibility gap: notebook 01's headline walk-forward figure, cited in multiple docs, was never actually present in the committed notebook's outputs.
 
 ---
 

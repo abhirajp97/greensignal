@@ -228,7 +228,7 @@ Signal output should be actionable in under 2 minutes. The product serves the Th
 **L1 (price position) — VALIDATED on real data (notebook 01 §1–8, 2010–2024):**
 - Contemporaneous r = **+0.852** (Phase 0 claimed +0.64 — same metric, confirmed)
 - Cost saving vs naive (full-history, in-sample): **+10.73%**
-- Cost saving — **walk-forward (no look-ahead): +3.71% avg, 12/12 years positive** ← cite this in product/investor comms
+- Cost saving — **walk-forward (no look-ahead), re-executed 2026-08: 78w window wins at +7.34% avg, 10/12 years positive** (52w: +6.05%/9-12; 104w: +6.75%/11-12) ← cite this in product/investor comms. The previously-cited "+3.71% avg, 12/12 years" figure was **not reproducible** — notebook 01's walk-forward cells had never actually been executed in the committed file; see `CHANGELOG.md [0.16.0]`
 - BUY zone (pos < 0.30) avg price: **135 USc/lb** vs AVOID zone (pos > 0.70): **205 USc/lb** — 52% cheaper
 - Forward predictive r peaks at **24m lag** (r = +0.20), not 12m — arabica momentum lasts ~12m before mean-reverting
 - All three validation gates PASS ✅
@@ -258,6 +258,21 @@ Signal output should be actionable in under 2 minutes. The product serves the Th
 - Real-data rank order is broadly L1 ≈ L2a > L2b > {L3, L5}; confirm in the composite before product work
 
 **Nasdaq Data Link CHRIS access:** CHRIS futures database requires a paid subscription. Production `ice_coffee_c.py` targets `CHRIS/ICE_KC1`; backtests use Yahoo Finance `KC=F` (same instrument). Activate paid plan before deploying the production ingestion job.
+
+---
+
+## Walk-Forward Economic Validation (2026-08)
+
+Correlation gates test whether a signal is statistically related to price. They don't test whether turning that signal into an actual month-by-month buying rule beats naive buying. Notebooks 01, 02, 03, and 05 now each include a walk-forward purchase simulation — naive buying (equal weight every month) vs. structured buying (purchase weight scaled by the signal, lagged by its own correlation-identified peak), evaluated year by year with no look-ahead — so every non-composite signal has been tested the same way. Full detail and per-year tables in `CHANGELOG.md [0.16.0]` and `docs/notebook_0{1..5}_guide.md`.
+
+| Signal | Correlation gate | Walk-forward avg saving | Positive years |
+|--------|------------------|--------------------------|-----------------|
+| **L1** (price position, 78w) | — | **+7.34%** | 10/12 |
+| **L2b** (ENSO, isolated) | PASS (r=+0.288) | −0.07% | 8/15 |
+| **L3** (CHIRPS, isolated) | FAIL (r=+0.100) | +1.01% | 8/15 |
+| **L5** (COT, isolated, canonical weight) | PASS (r=+0.144) | −2.26% | 1/12 |
+
+**The correlation gate result does not predict the walk-forward result.** L2b and L5 both pass their gates but lose to naive buying standalone; L3 fails its gate but is roughly breakeven. Only L1 clears both a correlation bar and a walk-forward economic bar. This is real evidence — not just the pre-existing qualitative judgment — that L2b/L3/L5 belong in the composite as amplifiers on top of L1 (per the conditional formula above), not as standalone timing signals. L2a (USDA stocks-to-use) does not yet have a walk-forward section; given its much stronger price-level correlation (r=−0.40 to −0.59) it's a reasonable hypothesis it would fare better, but that's untested.
 
 ---
 

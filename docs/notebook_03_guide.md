@@ -190,14 +190,55 @@ The COT momentum signal tells you something different: specs are crowded long be
 
 ---
 
+## §6 — Gate Validation: r(COT index, fwd 6m change) ≥ +0.08
+
+Formalizes the peak of the §4 sweep as a pass/fail test. Forward 6m is the horizon where the momentum signal peaked (r=+0.144).
+
+```
+r(cot_index, fwd_6m) = +0.1444   p=5.317e-02
+Gate L5 (r >= +0.08): PASS
+```
+
+A scatter plot of `cot_index` vs. forward 6-month return, with a fitted trend line, visualizes the (weak but positive) relationship underlying the pass.
+
+---
+
+## §7 — Walk-Forward Purchase Simulation
+
+**Why this replaced the old "Rolling Stability" section:** the notebook originally had a 3-year rolling-correlation stability check here. It already used the correct lag (6m, not lag 0), unlike the equivalent sections in notebooks 04/05 — but it was still only a correlation-stability diagnostic, not an economic test. It's been replaced with a purchase-simulation walk-forward, the same design used in notebooks 01, 02, and 05, so all four signals can be compared on the same terms.
+
+**The weight rule:**
+
+```
+weight_t = cot_index_{t-6} / 100
+```
+
+Month *t*'s purchase weight is the COT index (0–100 percentile of net managed-money positioning) observed 6 months earlier — the horizon where §4/§6's sweep peaks — normalized to 0–1. This is a single, canonical version of the same idea §5's three-variant `units = cot_index / 50` design already explores; it exists so COT's result is directly comparable to notebooks 01/02/05's numbers, which all use a 0–1 normalized weight rather than a 0–2x unit multiplier.
+
+Tested in isolation (no blending with L1), 2013–2024 (matching §5 and notebook 01 — the 156-week rolling COT index needs a ~3-year burn-in before 2010).
+
+**What the results show:**
+
+| | Avg saving vs naive | Positive years |
+|---|---|---|
+| 2013–2024 (full) | **−2.26%** | 1/12 |
+| Excluding 2023–24 | −2.05% | 1/10 |
+
+This reinforces — more starkly, with a cleaner single-weight design — the same conclusion §5's three-variant analysis already reached: buying more in high-COT-index months means buying into prices that are already elevated (since COT is a momentum, not contrarian, signal), and the walk-forward framework structurally penalizes that. Only 1 of 12 years beats naive buying, and it isn't a 2023–24 artifact — the result is consistently negative across the window.
+
+---
+
 ## Key numbers to know
 
 | Metric | Value | Where |
 |--------|-------|-------|
 | Peak forward r (momentum) | ≈ +0.14 at 3–6m | §4 sweep |
 | Contrarian r at 12m (original thesis) | −0.05 | §4 / original Sec 5 |
-| Walk-forward avg saving (all variants) | ≈ 0 or negative | §5 |
-| Rolling window variants tested | 51w / 102w / 153w | §5 |
+| Gate L5 (r ≥ +0.08 at 6m) | PASS (r=+0.1444, p=0.053) | §6 |
+| Walk-forward avg saving, multi-variant (§5) | ≈ −2.1% to −2.6% across 3 variants | §5 |
+| Walk-forward avg saving, canonical single-weight (§7) | −2.26% | §7 |
+| Walk-forward positive years, canonical (§7) | 1/12 | §7 |
+| Rolling window variants tested (§5) | 51w / 102w / 153w | §5 |
 | Role in composite | Low-weight momentum amplifier | CLAUDE.md |
 
-The forward r of +0.14 is real and statistically distinguishable from zero — but predictive power and standalone purchasing value are not the same thing. The contrarian-style measurement framework requires a much stronger signal to beat naive. COT earns its place in the composite as a modifier of L1, not as an independent timing signal.
+The forward r of +0.14 is real and statistically distinguishable from zero, and clears its correlation gate — but predictive power and standalone purchasing value are not the same thing. Both the multi-variant (§5) and canonical single-weight (§7) walk-forward tests agree: COT loses money against naive buying when used as a standalone signal in this framework. COT earns its place in the composite as a modifier of L1, not as an independent timing signal — the same pattern now seen across all three non-L1 signals tested this way (ENSO, CHIRPS, COT).
