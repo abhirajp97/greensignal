@@ -65,7 +65,7 @@ All models use `pydantic.BaseModel`. These are the objects that flow between eve
 
 | File | What it does | Status |
 |------|-------------|--------|
-| `recommendation_engine.py` | `build_recommendation()` — applies the composite formula (`multiplier = (1.5 - price_position) × (1.0 + 0.65 × climate_risk_score)`), returns a `Recommendation` with action/headline/rationale. Origin-agnostic — used by both `generate_signal()` (Brazil) and `generate_india_signal()` | ✅ Done |
+| `recommendation_engine.py` | `build_recommendation()` — applies the composite formula (`multiplier = (1.5 - price_position) × (1.0 + 0.65 × climate_risk_score)`), returns a `Recommendation` with action/headline/rationale. Origin-agnostic — used by both `generate_signal()` (Brazil) and `generate_india_signal()`. Also exports `classify_normalized(current_multiplier, trailing_multipliers)` — the notebook-06-validated rolling-24m normalization (ratio to trailing 24-month mean, same thresholds), kept as a separate explicit function since `build_recommendation()` is pure/stateless and has no way to hold trailing history | ✅ Done |
 | `scenario_engine.py` | Computes `ScenarioOutput` from `ScenarioInput` for margin modelling | 🔲 Stub |
 | `forecasting.py` | Wraps NeuralProphet or ARIMA-X — takes price + feature DataFrames, returns `Forecast` | 🔲 Stub |
 | `data_quality.py` | Gap detection and range checks — called by ingestion jobs before storing | 🔲 Stub |

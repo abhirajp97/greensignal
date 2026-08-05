@@ -1,14 +1,23 @@
 """Recommendation engine — converts signal inputs into a Recommendation object."""
+from collections.abc import Sequence
 from datetime import date
 
 from core.models.recommendation import Action, Recommendation
 
 # Multiplier thresholds for the action label — the formula's own natural neutral
 # point (price_position=0.5, climate_risk=0 → multiplier=1.0) sits inside the
-# NEUTRAL band, so these apply directly to the raw multiplier rather than a
-# rolling-mean-normalized ratio (see docs/GreenSignal_Math_Reference.md §7.3).
+# NEUTRAL band, so `build_recommendation()` applies these directly to the raw
+# multiplier. `classify_normalized()` below applies the *same* thresholds to a
+# rolling-mean-normalized ratio instead (notebook 06's validated methodology,
+# docs/GreenSignal_Math_Reference.md §7.3) — kept as a separate explicit
+# function rather than folded into `build_recommendation()`, since it needs a
+# trailing multiplier history that function has no way to hold (it's a pure,
+# single-point-in-time call).
 _BUY_THRESHOLD = 1.25
 _CAUTION_THRESHOLD = 0.80
+
+_NORMALIZATION_WINDOW = 24
+_NORMALIZATION_MIN_PERIODS = 12
 
 _MULTIPLIER_MIN = 0.4
 _MULTIPLIER_MAX = 2.3
@@ -53,6 +62,46 @@ def build_recommendation(
             "climate_risk_score": climate_risk_score,
         },
     )
+
+
+def classify_normalized(
+    current_multiplier: float, trailing_multipliers: Sequence[float]
+) -> tuple[float, Action]:
+    """Classify a multiplier via notebook 06's validated rolling-24m normalization.
+
+    `normalized = current_multiplier / mean(trailing multipliers)`, then the
+    same `_BUY_THRESHOLD`/`_CAUTION_THRESHOLD` apply to that ratio instead of
+    the raw multiplier — this is what raised the composite's real-data BUY
+    rate from 4.9% (the old annual-refit baseline) to 20.0% and is now the
+    validated primary classification method (notebook 06 §4, §12).
+
+    `trailing_multipliers` must be the caller's own prior `raw_multiplier`
+    history — up to the 24 most recent months *before* the one being
+    classified, never including it (mirrors the notebook's
+    `.rolling(24, min_periods=12).mean().shift(1)` — no look-ahead). Raises
+    `ValueError` below 12 trailing observations, matching the notebook's own
+    `min_periods=12`: there isn't enough history yet to normalize
+    meaningfully, and the caller should fall back to `build_recommendation()`'s
+    raw-threshold classification instead.
+    """
+    if len(trailing_multipliers) < _NORMALIZATION_MIN_PERIODS:
+        raise ValueError(
+            f"need at least {_NORMALIZATION_MIN_PERIODS} trailing multipliers to "
+            f"normalize, got {len(trailing_multipliers)}"
+        )
+
+    window = list(trailing_multipliers)[-_NORMALIZATION_WINDOW:]
+    baseline = sum(window) / len(window)
+    normalized = current_multiplier / baseline
+
+    if normalized >= _BUY_THRESHOLD:
+        action = Action.BUY
+    elif normalized <= _CAUTION_THRESHOLD:
+        action = Action.CAUTION
+    else:
+        action = Action.NEUTRAL
+
+    return normalized, action
 
 
 def _headline(action: Action, multiplier: float) -> str:
