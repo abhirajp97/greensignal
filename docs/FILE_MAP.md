@@ -125,7 +125,7 @@ All models use `pydantic.BaseModel`. These are the objects that flow between eve
 | File | What it does | Status |
 |------|-------------|--------|
 | `signal_generator.py` | `generate_signal()` — Brazil, takes all five signal inputs → calls `recommendation_engine.build_recommendation`. `generate_india_signal()` — additive, India's 2-input (price_position + Kodagu climate risk) composite, same formula shape | ✅ Done |
-| `risk_scorer.py` | Builds `RiskSignal` objects from supply and climate inputs | 🔲 Stub |
+| `risk_scorer.py` | `score_supply_risk()` (stu_pct → RiskSignal via `usda_psd.stu_risk_score`) and `score_climate_risk()` (ENSO + drought → averaged RiskSignal, origin-agnostic) — both build `RiskLevel`-classified, plain-language `RiskSignal` objects | ✅ Done |
 
 ---
 
