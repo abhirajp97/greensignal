@@ -59,6 +59,8 @@ degradation (one bad year/report does not sink the whole fetch).
 import io
 import logging
 import re
+import statistics
+from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from urllib.parse import urljoin
 
@@ -177,9 +179,7 @@ def fetch(start: date, end: date) -> tuple[list[FeatureObservation], SourceRun]:
             )
 
     if not observations:
-        return [], _failed_run(
-            started_at, "; ".join(skipped) or "No reports in requested range"
-        )
+        return [], _failed_run(started_at, "; ".join(skipped) or "No reports in requested range")
 
     status = RunStatus.PARTIAL if skipped else RunStatus.SUCCESS
     return observations, SourceRun(
@@ -191,6 +191,59 @@ def fetch(start: date, end: date) -> tuple[list[FeatureObservation], SourceRun]:
         records_stored=0,
         error_message="; ".join(skipped) if skipped else None,
     )
+
+
+_STU_STRESS_WINDOW = 6  # ~3yr lookback at this source's semiannual cadence
+
+
+def stu_wmt_zscore(current_stu_pct: float, trailing_stu_pct: Sequence[float]) -> float:
+    """Z-score `current_stu_pct` against its own trailing history on this series.
+
+    `trailing_stu_pct` must be the `_STU_STRESS_WINDOW` most recent prior
+    true-vintage stocks-to-use % readings, in chronological order, NOT
+    including the current one — mirrors notebook 04 §16's
+    `rolling_zscore(window=6)` (`prior = s.shift(1)` before the rolling
+    mean/std), which excludes each point from its own baseline. Small-n by
+    construction (this source is semiannual, ~2 reports/year), a real
+    tradeoff of using less-but-better (true-vintage, not always-latest-
+    revised) data. Raises `ValueError` below `_STU_STRESS_WINDOW` trailing
+    observations, matching the notebook's own unfilled rolling window and
+    `core/services/recommendation_engine.py::classify_normalized`'s pattern
+    for "not enough history yet" — callers should fall back to
+    `usda_psd.stu_risk_score` instead.
+    """
+    if len(trailing_stu_pct) < _STU_STRESS_WINDOW:
+        raise ValueError(
+            f"need at least {_STU_STRESS_WINDOW} trailing observations to "
+            f"z-score, got {len(trailing_stu_pct)}"
+        )
+    window = list(trailing_stu_pct)[-_STU_STRESS_WINDOW:]
+    mean = statistics.mean(window)
+    stdev = statistics.stdev(window)  # sample stdev (ddof=1) — matches pandas .std() default
+    if stdev == 0:
+        return 0.0
+    return (current_stu_pct - mean) / stdev
+
+
+def stu_wmt_stress_score(z_score: float) -> float:
+    """Convert a true-vintage stocks-to-use z-score to a 0–1 stress score.
+
+    `clamp((-z + 2) / 4, 0, 1)` — self-calibrating against the series' own
+    history rather than `usda_psd.stu_risk_score`'s fixed 12%/35% percent
+    bounds (notebook 04 §16). Z=-2 (very tight vs. own recent history) -> 1.0;
+    Z=0 (neutral) -> 0.5; Z>=+2 (very loose) -> 0.0.
+
+    **Wrong-signed against the composite's `fwd_6m` target and actively
+    hurts the walk-forward ablation** (notebook 06 §11: r=-0.135 vs the
+    `usda_psd` approximation's +0.262; dropping it improves cost improvement
+    by +0.79pp) — a real, reported negative finding, not yet resolved. Still
+    used in `climate_features.py::WEIGHTS` (down-weighted to 0.201, not
+    dropped, per the r-proportional scheme) and in the India v3 signal
+    (`signal_generator.generate_india_signal_v3`), where it is a genuinely
+    different (weaker-magnitude but not wrong-signed) contributor — see that
+    function's docstring.
+    """
+    return float(max(0.0, min(1.0, (-z_score + 2) / 4)))
 
 
 # ── Private helpers ────────────────────────────────────────────────────────────

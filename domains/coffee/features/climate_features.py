@@ -10,23 +10,33 @@ def enso_lagged(oni: pd.Series, lag_months: int = 24) -> pd.Series:
     ...
 
 
+WEIGHTS = {
+    "stu_risk": 0.201,
+    "enso_risk": 0.142,
+    "brazil_drought_risk": 0.625,
+    "cot_contrarian": 0.031,
+}
+"""Real-data r-proportional weights (notebook 06 §12), superseding the Phase 0
+fixed split (0.38/0.24/0.22/0.16). Derived on the true-vintage L2a frame
+(notebook 04 §16, notebook 06 §11) after that rebuild showed the Phase-0
+stu_risk weight was too high relative to its own real-data |r| against
+forward returns — L3 (brazil_drought_risk) is the strongest real contributor
+by a wide margin. Walk-forward cost improvement with these weights: +4.45%
+(2017-2024, PASS vs the 3.0% gate). Exposed as a named constant, not just
+inline literals, so downstream callers that need to explain/decompose the
+score read the actual formula weights from one place."""
+
+
 def climate_risk_score(
     stu_risk: float,
     enso_risk: float,
     brazil_drought_risk: float,
     cot_contrarian: float,
 ) -> float:
-    """Compute the weighted climate risk score used in the composite formula.
-
-    Weights from Phase 0 (synthetic data — revalidate on real data):
-        0.38 × stu_risk
-        0.24 × enso_risk
-        0.22 × brazil_drought_risk
-        0.16 × cot_contrarian_signal
-    """
+    """Compute the weighted climate risk score used in the composite formula."""
     return (
-        0.38 * stu_risk
-        + 0.24 * enso_risk
-        + 0.22 * brazil_drought_risk
-        + 0.16 * cot_contrarian
+        WEIGHTS["stu_risk"] * stu_risk
+        + WEIGHTS["enso_risk"] * enso_risk
+        + WEIGHTS["brazil_drought_risk"] * brazil_drought_risk
+        + WEIGHTS["cot_contrarian"] * cot_contrarian
     )
