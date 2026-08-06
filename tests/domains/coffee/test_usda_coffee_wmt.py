@@ -16,6 +16,8 @@ from domains.coffee.sources.usda_coffee_wmt import (
     _parse_stocks_to_use,
     _section_total,
     fetch,
+    stu_wmt_stress_score,
+    stu_wmt_zscore,
 )
 
 _CLIENT_PATCH = "domains.coffee.sources.usda_coffee_wmt.httpx.Client"
@@ -90,10 +92,7 @@ class TestParseStocksToUse:
         assert _parse_stocks_to_use(_NARRATIVE_ONLY_TEXT) is None
 
     def test_missing_consumption_section_returns_none(self):
-        text = (
-            "Thousand 60-Kilogram Bags\n"
-            "Ending Stocks none\nBrazil 100\nTotal 500\n"
-        )
+        text = "Thousand 60-Kilogram Bags\nEnding Stocks none\nBrazil 100\nTotal 500\n"
         assert _parse_stocks_to_use(text) is None
 
     def test_zero_consumption_returns_none(self):
@@ -410,3 +409,39 @@ class TestFetch:
 
         assert run.status == RunStatus.FAILED
         assert obs == []
+
+
+class TestStuWmtZscore:
+    def test_matches_notebook_04_cached_values(self):
+        # The 6 true-vintage stu_wmt % readings preceding the 2013-06-21
+        # report, and that report's own value, from
+        # notebooks/coffee_backtests/data/stu_wmt_vintage.csv — cross-checked
+        # against that notebook's own rolling_zscore(window=6)/
+        # stu_stress_score output (z=+0.7338, stress=0.3166).
+        trailing = [
+            19.698112080742327,
+            23.921389047891623,
+            19.698112080742327,
+            17.91416084569123,
+            19.195105428063343,
+            19.73290515162018,
+        ]
+        z = stu_wmt_zscore(21.516935114369296, trailing)
+        assert z == pytest.approx(0.7338, abs=1e-3)
+        assert stu_wmt_stress_score(z) == pytest.approx(0.3166, abs=1e-3)
+
+    def test_raises_below_window(self):
+        with pytest.raises(ValueError, match="need at least 6"):
+            stu_wmt_zscore(20.0, [19.0, 21.0, 20.0])
+
+    def test_zero_stdev_returns_zero(self):
+        assert stu_wmt_zscore(20.0, [20.0] * 6) == 0.0
+
+
+class TestStuWmtStressScore:
+    def test_clamps_to_0_1(self):
+        assert stu_wmt_stress_score(10.0) == 0.0
+        assert stu_wmt_stress_score(-10.0) == 1.0
+
+    def test_neutral_at_zero(self):
+        assert stu_wmt_stress_score(0.0) == pytest.approx(0.5)

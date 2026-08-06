@@ -270,7 +270,7 @@ Signal output should be actionable in under 2 minutes. The product serves the Th
 - Approximation: once lagged, raw r(S/U, price level) = −0.40 weakens to **r=−0.26**. True vintage: r(true vintage S/U, 12m-fwd price) = **−0.49** — *stronger* than the approximation. The two methods agree directionally but only moderately (r=+0.49 between them, mean abs diff 3.1pp) — the shift was a reasonable stand-in, not a validated substitute.
 - Redefined gate is **two tests**, both **PASS** on both the approximation (Gate 1 r=−0.312 p=2.0e-5 n=180; Gate 2 r=−0.259 p=4.6e-4 n=180) and the true vintage series (Gate 1 r=−0.488 p=6.2e-3 n=30; Gate 2 r=−0.261 p=0.17 n=29 — passes the threshold but not significant at this small semiannual-cadence sample). Replaces the old single YoY-change gate (r=−0.04, wrong lens for an annual step-function var).
 - Added a **10-year rolling z-score** (no additional look-ahead beyond the vintage lag), a **YoY delta** (the "shock" dimension), and **months of consumption** as roaster-legible features, computed on the PSD-derived annual series. World buffer 11.6% (MY2025) → Z=−1.96, a once-in-a-generation tight read, 1.4 months of consumption in storage.
-- **Non-linear stress score replaces the linear clamp:** `stress = clamp((−z + 2) / 4, 0, 1)`, self-calibrating against the series' own 10yr history instead of fixed 12%/35% percent bounds. Not yet promoted into `usda_psd.py`/`supply_features.py` — stays notebook-local until composite wiring (06), per the L3/SPI precedent (same holds for the new true-vintage series).
+- **Non-linear stress score replaces the linear clamp:** `stress = clamp((−z + 2) / 4, 0, 1)`, self-calibrating against the series' own 10yr history instead of fixed 12%/35% percent bounds. **Promoted into production** as `usda_coffee_wmt.stu_wmt_zscore()` / `stu_wmt_stress_score()` (window=6, true-vintage series only — the PSD-approximation version stays notebook-local, since production code only needs the true-vintage input the shipped composite actually uses). Byte-for-byte cross-checked against notebook 04 §16's cached `stu_wmt_vintage.csv` values.
 - Rolling 3yr stability (on the approximation series) is honest but modest: 52% of windows negative (up from 23% on the old YoY-change basis, but not strong on its own) — the full-sample gates (n=180, p<0.001-scale) are the stronger evidence.
 
 **L2b (ENSO) — re-backtested with corrected thesis; now PASSES (notebook 02):**
@@ -298,7 +298,9 @@ The first version of notebook 06 passed its gate (discrete "forward prescience a
 - **Root cause, found and fixed:** the walk-forward re-derived its normalization baseline once per *calendar year* from an expanding window (annual-refit), producing lumpy 12-month buckets. A **rolling 24-month** trailing-window normalization (recomputed every month, closer to how `price_position_52w` itself already works) raised the BUY rate from 4.9% to 20.0% and cut the longest silent gap from 18 to 16 months — confirmed directly, not assumed, by running both side by side with identical weights.
 - **Primary gate switched from the discrete prescience test to the continuous `cost_improvement_backtest` methodology** (`docs/GreenSignal_Math_Reference.md` §11.1 — the same one notebook 01 used to validate L1 alone), since that's what Phase 0's own doc treats as the primary ROI story and what actually mirrors the product's continuous purchase-volume-scaling design. **PASSES: walk-forward +5.86%**, *exceeding* L1-alone's own walk-forward benchmark (+3.71%) — full-history is +4.45% (vs. L1-alone's +10.73%).
 - **Spike avoidance confirmed directly:** the composite held a sustained BUY signal through most of Jan–Sep 2023 (price $146–190/lb), *before* the 2024 rally accelerated past $220/lb and kept climbing — a real instance of the "buy before the spike" behavior `docs/GreenSignal_Phase0_Report.md` §3.2 frames as the actual product story for smaller roasters.
-- **Two honest open anomalies, reported rather than smoothed over:** (1) the secondary (discrete, 3-state) prescience check shows BUY months *underperforming* CAUTION/NEUTRAL forward returns in this sample — tempered by using in-sample fixed weights rather than the walk-forward weights that pass the primary gate, and plausibly reflecting the 2023–2025 structural supply-shock rally where mean-reversion timing underperforms momentum; (2) the leave-one-out ablation **reverses sign for L5** vs. the original notebook (dropping `cot_momentum` now *helps* by +0.56pp, was −0.81pp) — which sub-signals earn their weight is sensitive to the validation metric and weighting scheme used, a reason to treat any single ablation result as provisional. L2b (`enso_risk`) remains the strongest contributor in both versions.
+- **Two open anomalies, both investigated further (notebook 06 §14–§16) — one confirmed-and-diagnosed, one explained, neither silently resolved:**
+  - **Anomaly 1 (§7, BUY underperforms CAUTION/NEUTRAL): the in-sample-weights tempering hypothesis is FALSIFIED — the anomaly is real and gets *worse* with true walk-forward weights, not better.** §14 re-ran the same 3-state test with genuinely out-of-sample, walk-forward-refit weights (matching §6/§8's own methodology) instead of §7's fixed full-history weights: CAUTION's forward-6m return rose to **+20.26%** (n=19) against BUY's +7.47% (n=12) — a wider gap than the original fixed-weight version (CAUTION +6.99% vs BUY +4.66%), so this is not an in-sample-fitting artifact. Directly inspecting the CAUTION months confirms the second, previously-speculative tempering hypothesis instead: 8 of 19 fall in Dec 2020–Jun 2021 or Jun–Dec 2024 — the sample's two genuine structural supply-shock rallies — where the composite correctly read price as elevated relative to its own recent regime, but the rally kept running well past that point (forward-6m returns of +41% to +53% in several of those months). **Practical implication: the primary economic gate (§6, cost-improvement, which passes) should remain the headline validation metric; the 3-state classification's forward-return ordering should not be marketed as reliably monotone (BUY > NEUTRAL > CAUTION) without this caveat.**
+  - **Anomaly 2 (§8, L5 ablation sign reversal): explained by a specific, verified mechanism — real sub-signal sign instability meeting a weighting scheme that assumes sign stability.** §15 found every walk-forward training window's `r(cot_momentum, fwd_6m)` on the final true-vintage frame (`core_true`, 2013–2024) is *negative* (−0.026 to −0.541) — opposite notebook 03's own full-sample 2010–2024 finding (+0.144) — while a rolling-36-month stability check on the full frame shows the correlation is close to a coin flip (52% of windows positive, mean ≈ 0.00, range −0.560 to +0.395), consistent with and slightly more extreme than notebook 03's own 45%-positive figure. The composite's r-proportional weighting (weight ∝ `abs(r)`, but the raw non-negative sub-signal value is what gets added) implicitly assumes each sub-signal stays consistently right-signed; when a training window's own `r` is negative, weighting `cot_momentum` up by magnitude while adding it as if higher = higher-risk is mechanically backwards for that window — sufficient to explain why dropping it helps in some periods and hurts in others. **No weight change follows** — `cot_momentum` stays at its existing low weight (0.031); this traces the existing number to a mechanism rather than proposing a new one. L2b (`enso_risk`) remains the strongest contributor throughout.
 - **Multiple collaborators are independently exploring different composite formulas right now** (see above) — this rebuild specifically validates and improves the multiplicative formula already implemented in `signal_generator.py`, not a claim that it's the converged team design.
 - **Resolved — `stu_stress` rebuilt off the true-vintage series (notebook 04 §16, notebook 06 §11), and the result is a real negative finding, not the expected confirmation.** True-vintage `stu_stress` (window=6 small-n z-score, n=25 valid semiannual observations) is **wrong-signed** against `fwd_6m` (r=−0.135, vs the approximation's +0.262), and dropping it from the composite *improves* walk-forward cost improvement by +0.79pp — worse than the approximation's near-neutral −0.03pp. L2a still passes its own standalone gate against 12m-forward **price level** (r=−0.488) — genuinely different from the composite's 6m-forward-**return** ablation target, not a contradiction: stocks-to-use may validly track where price sits without predicting near-term moves. **Weights re-derived on the true-vintage frame and promoted into `climate_features.py::WEIGHTS`**: stu_risk 0.201 (down from Phase 0's 0.38), enso_risk 0.142, brazil_drought_risk 0.625 (now dominant), cot_contrarian 0.031. Walk-forward with final weights: +4.45% (2017-2024, PASS vs 3.0% gate).
 
@@ -449,6 +451,40 @@ proxy needed.
   discrete regulatory/policy event dummies (EUDR, India-EFTA) and
   harvest-window (Nov-Feb) rainfall as a different climate pathway from the
   flowering-window SPI-3 already built.
+- **India §16 — diagnosed §15's FAIL rather than stopping at it, and found a
+  real, walk-forward-validated India Arabica timing signal (notebook 09
+  §11-§16).** §11-§12 traced §15's wrong-signed FAIL to a specific mechanism,
+  not a dead end: 4 of 5 raw sub-signals correlate *positively* (right-signed)
+  with forward India price — `l3_risk` (Brazil's own Minas Gerais drought
+  risk, used as a *global* Arabica supply-risk proxy since Brazil dominates
+  world production) strongly so, r=+0.620 @ 12m — but Brazil's
+  `(1.5 - price_position)` contrarian term is wrong-signed for India
+  (r=−0.221 to −0.347 across horizons) and large enough in the multiplicative
+  blend to flip the whole composite's sign. §13-§15 re-derived weights on
+  India's own data (not inherited from Brazil) and found: `enso_risk`
+  contributes ~nothing (ablation delta 0.000) and `cot_momentum` actively
+  hurts (dropping it: +0.043) — both dropped. Best candidate — `price_pos`
+  (momentum-signed, not contrarian; weight 0.361) + `stu_stress` (0.148) +
+  `l3_risk` (0.491), plain r-proportional additive weighted sum, not
+  Brazil's conditional-multiplicative shape — **walk-forward validated
+  (weights refit on trailing data only each year, no look-ahead): r=+0.553
+  (p<0.0001, n=96 months, 8 test years 2017-2024)**, stronger out-of-sample
+  than in-sample (+0.505) — a good sign against overfitting.
+- **Productionized as `domains/coffee/models/signal_generator.py::generate_india_signal_v3()`**
+  (`INDIA_V3_WEIGHTS`), reusing the true-vintage `stu_wmt_stress_score()`
+  promoted into `usda_coffee_wmt.py` (see the L2a entry above) for its
+  `stu_stress` input and Brazil's own `chirps.py` drought-risk output
+  (unchanged) for `l3_risk` — **deliberately not India's own Kodagu climate
+  data**, consistent with §6-7's pass-through finding. A new
+  `core/services/recommendation_engine.py::build_recommendation_from_multiplier()`
+  supports this alongside `build_recommendation()`, since v3's additive shape
+  isn't the `(1.5 - price_position) * (1 + 0.65 * climate_risk_score)`
+  formula. `generate_india_signal()` (v2, Kodagu-local-climate) is kept, not
+  deleted, and marked superseded in its own docstring. `confidence` defaults
+  to 0.4 (lower than Brazil's typical 0.7) — one walk-forward test on ~8
+  years of India-specific data is real and promising but meaningfully
+  earlier-stage than Brazil's multi-notebook, multi-session validation.
+  Arabica-only; not validated for Robusta. 15 new tests.
 
 ---
 
@@ -457,12 +493,14 @@ proxy needed.
 1. ✅ Real data pipelines for L1 (ICE KC), L2b (ENSO), L5 (COT) — no GEE needed
 2. ✅ Add USDA PSD (L2a) from bulk CSV
 3. ✅ Add CHIRPS (L3) via GEE (project `western-plate-432020-t5`)
-4. ✅ Composite backtest (notebook 06) on real data, **rebuilt once** — first version passed on a discrete, thin-sample metric; rebuilt around a continuous cost-improvement gate + rolling-24m normalization to match the product's always-on design. PASSES: walk-forward +5.86% (beats L1-alone's +3.71%). Two anomalies flagged, not resolved (§7/§8 disagreements, see above)
+4. ✅ Composite backtest (notebook 06) on real data, **rebuilt once** — first version passed on a discrete, thin-sample metric; rebuilt around a continuous cost-improvement gate + rolling-24m normalization to match the product's always-on design. PASSES: walk-forward +5.86% (beats L1-alone's +3.71%). Two anomalies flagged, since investigated further in notebook 06 §14-§16 (see 4e below) — one confirmed real (not resolved), one explained
 4a. ✅ **`stu_stress` rebuilt off the true-vintage series and L2a ablation re-run (notebook 04 §16, notebook 06 §11-§12)** — a real, reportable negative finding, not the hoped-for confirmation: true-vintage `stu_stress` is **wrong-signed** against `fwd_6m` (r=−0.135, vs the approximation's +0.262) and dropping it from the composite *improves* walk-forward cost improvement by +0.79pp — more than the approximation's near-neutral −0.03pp. L2a still passes its own standalone gate (12m-fwd **price level**, r=−0.488) — a genuinely different target than the composite's 6m-**forward-return** ablation, not a contradiction. **Weights re-derived and promoted into `climate_features.py::WEIGHTS`**: `stu_risk=0.201, enso_risk=0.142, brazil_drought_risk=0.625, cot_contrarian=0.031` (L3 now dominant, a reversal from Phase 0's stu_risk-heaviest split). Walk-forward with final weights: **+4.45% (2017-2024, PASS vs 3.0% gate)**
 4b. ✅ **`domains/coffee/models/risk_scorer.py` implemented** — `score_supply_risk(asset_id, signal_date, stu_pct)` (reuses `usda_psd.stu_risk_score`) and `score_climate_risk(asset_id, signal_date, enso_risk, drought_risk)` (simple average of the two, origin-agnostic — no region name baked into `source`, since CHIRPS extraction is per-origin). Both classify into `RiskLevel` via a plain quartile split of the 0-1 score and write plain-language `rationale` text. 9 new tests
 4c. ✅ **Rolling-24m normalization wired via `core/services/recommendation_engine.py::classify_normalized()`** — a separate, explicit function (`classify_normalized(current_multiplier, trailing_multipliers) -> tuple[float, Action]`), not a change to `build_recommendation()`'s signature: that function is pure/single-point-in-time and has no way to hold a trailing history, so normalization stays an opt-in step for callers that have one (a notebook backtest today; a future job with persisted history once Build Sequence step 6 lands). Reuses the same `_BUY_THRESHOLD`/`_CAUTION_THRESHOLD` constants, applied to `current_multiplier / mean(trailing 24 months)` instead of the raw multiplier — matches notebook 06 §4/§12's validated `mult.rolling(24, min_periods=12).mean().shift(1)` exactly. Raises below 12 trailing observations (the notebook's own `min_periods`). 7 new tests
 4d. ✅ **India §15 forecast-transferability test run — a decisive FAIL, real and reportable.** With production wiring complete (true-vintage L2a, finalized weights, `classify_normalized()`), notebook 09 §10 tested whether the Brazil composite's real historical BUY/CAUTION/NEUTRAL regime predicts forward India Arabica price — not just the contemporaneous level relationship §14 already proved. **r(Brazil normalized_mult, fwd-12m India price) = −0.250 (p=0.005, n=127), wrong-signed and significant** — BUY months averaged −0.38% forward India price vs +17.71% for NEUTRAL and +14.51% for CAUTION, the opposite of what a working timing signal would show. FX-adjusted version (isolating the coffee-only story from FX) gives nearly the same result (r=−0.235, p=0.008) — this isn't primarily an FX-noise artifact. **Conclusion: India price levels move with global price + FX at the same time (§14, still true), but the global composite's forward-looking regime does not carry forecasting power for India price specifically** — likely adjustment lags or sticky domestic pricing, a real and distinct phenomenon from the pass-through relationship itself. Rules out the "one global composite, translated per-origin" architecture for India specifically; doesn't invalidate §14's product-narrative finding (India price is a global-plus-FX story) or the broader architectural hope for other origins. See `docs/india_origin_signal_plan_v2_full_build.md` §15 and `docs/NEXT_STEPS.md` for the full writeup
-5. ← **NEXT:** Reconcile the notebook 06 §7/§8 anomalies. Confirm which composite formula is being wired first — multiple collaborators are exploring different designs (see composite section above). India's card-copy calibrated-honesty review (still pending) should now incorporate §15's finding alongside §14's — a validated India signal isn't yet demonstrated as a *timing* signal via any tested route, global-composite-translation or local-climate
+4e. ✅ **Notebook 06 §7/§8 anomalies investigated further (§14-§16)** — see the "Two open anomalies" bullet above for the full findings. Anomaly 1 (BUY underperforms CAUTION) is confirmed real via true walk-forward weights (not an in-sample artifact) and traced to two structural rallies (2021, 2024) the mean-reversion formula is expected to underperform through — not resolved, but no longer unexplained. Anomaly 2 (L5 ablation sign reversal) is explained by `cot_momentum`'s pre-documented sign instability meeting the composite's weighting-scheme assumption — no weight change follows
+4f. ✅ **India v3 signal productionized** (`generate_india_signal_v3`, see India Origin Signal section above) — notebook 09 §16's walk-forward-validated momentum + global-stu-stress + Brazil-drought-as-global-proxy blend, no longer notebook-only
+5. ← **NEXT:** Confirm which composite formula is being wired first for production — multiple collaborators are exploring different designs (see composite section above). India's card-copy calibrated-honesty review (still pending) should now incorporate §16's real signal alongside §14/§15's findings — a validated India *timing* signal now exists (§16, walk-forward r=+0.553) via a route neither §14 nor §15 anticipated (global fundamentals + India's own price momentum, not a straight Brazil-regime translation or local climate), but it's a single walk-forward test, earlier-stage than Brazil's multi-session validation, and Arabica-only
 6. Independent engineering work (can parallelize): `core/storage/repositories.py` (stub — nothing is currently persisted despite 6 working sources) + job wiring, `margin_features.py`
 7. FastAPI layer with core route structure
 8. React frontend: signal cards, price chart, margin calculator
@@ -472,17 +510,25 @@ separate sprint (`feat/india-origin-signal`), reusing this build sequence's Braz
 infrastructure rather than replicating it. See "India Origin Signal" section above
 for the full status — summary: real India-origin price, supply, and climate data
 throughout (no proxy); registry, `chirps_india.py` (now multi-district),
-`build_recommendation`, and `generate_india_signal` are all real and running on
-live data; the notebook 09 backtest gate **FAILS for both species** on genuine
-India-origin data, and all three flagged follow-up experiments (multi-district
-weighting, Arabica 24m robustness, and global pass-through + FX decomposition)
-have since been run and closed out — the last of these explains *why* the
-first two failed: India's domestic price is 89-96% explained by global
-benchmark + FX pass-through, not local climate. This is a fully diagnosed
-methodology finding, not a data-availability gap. **A fourth test (§15,
-run once Brazil's production wiring was complete) closes the loop: the
-Brazil composite's regime does NOT predict forward India price** (r=−0.250,
-wrong-signed, p=0.005) — the pass-through relationship holds at the price
-*level* but doesn't transfer as a *timing* signal. Not validated for
-roaster-facing promotion yet; full supply re-backfill blocked pending
-`coffeeboard.gov.in`'s TLS certificate renewal.
+`build_recommendation`, `generate_india_signal` (v2), and `generate_india_signal_v3`
+are all real and running on live data; the notebook 09 v2 backtest gate (local
+Kodagu climate/supply) **FAILS for both species** on genuine India-origin data,
+and all three flagged follow-up experiments (multi-district weighting, Arabica
+24m robustness, and global pass-through + FX decomposition) have since been run
+and closed out — the last of these explains *why* the first two failed: India's
+domestic price is 89-96% explained by global benchmark + FX pass-through, not
+local climate. This is a fully diagnosed methodology finding, not a
+data-availability gap. **A fourth test (§15, run once Brazil's production
+wiring was complete) closes the loop on the "translate Brazil's own regime"
+approach specifically: the Brazil composite's regime does NOT predict forward
+India price** (r=−0.250, wrong-signed, p=0.005) — the pass-through relationship
+holds at the price *level* but doesn't transfer as a *timing* signal via that
+route. **§16 then found a real one via a different route** — global
+fundamentals (world stocks-to-use stress, Brazil's own crop risk as a global
+Arabica proxy) plus India's own price *momentum* (not Brazil's mean-reversion
+sign), additively blended rather than multiplied: walk-forward r=+0.553
+(p<0.0001, n=96, 2017-2024), now productionized as `generate_india_signal_v3`.
+Earlier-stage validation than Brazil's (one walk-forward test, Arabica-only) —
+not yet promoted to roaster-facing "validated" framing, and the card-copy
+calibrated-honesty review is still pending. Full India supply re-backfill
+remains blocked pending `coffeeboard.gov.in`'s TLS certificate renewal.

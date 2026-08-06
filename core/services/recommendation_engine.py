@@ -1,4 +1,5 @@
 """Recommendation engine — converts signal inputs into a Recommendation object."""
+
 from collections.abc import Sequence
 from datetime import date
 
@@ -61,6 +62,50 @@ def build_recommendation(
             "price_position": price_position,
             "climate_risk_score": climate_risk_score,
         },
+    )
+
+
+def build_recommendation_from_multiplier(
+    asset_id: str,
+    recommendation_date: date,
+    multiplier: float,
+    signal_inputs: dict[str, float],
+    rationale: str,
+    confidence: float = 0.5,
+) -> Recommendation:
+    """Build a Recommendation from an already-computed multiplier.
+
+    For composite formulas that aren't `build_recommendation()`'s specific
+    `(1.5 - price_position) * (1 + 0.65 * climate_risk_score)` shape — e.g.
+    India v3's additive weighted-sum (`signal_generator.generate_india_signal_v3`,
+    notebook 09 §16), which is structurally different (no contrarian term,
+    plain weighted sum) and needs its own upstream formula, headline, and
+    rationale, but should classify against the same thresholds/clamp bounds
+    and build the same Recommendation shape as every other signal in the
+    product. Applies the same `_BUY_THRESHOLD`/`_CAUTION_THRESHOLD`/clamp
+    constants and the same `_headline()` text (already generic over
+    action/multiplier) — only `rationale` and `signal_inputs` are the
+    caller's own, since `_rationale()` is specifically coupled to
+    price_position/climate_risk_score semantics.
+    """
+    clamped = max(_MULTIPLIER_MIN, min(_MULTIPLIER_MAX, multiplier))
+
+    if clamped >= _BUY_THRESHOLD:
+        action = Action.BUY
+    elif clamped <= _CAUTION_THRESHOLD:
+        action = Action.CAUTION
+    else:
+        action = Action.NEUTRAL
+
+    return Recommendation(
+        asset_id=asset_id,
+        recommendation_date=recommendation_date,
+        action=action,
+        multiplier=clamped,
+        confidence=confidence,
+        headline=_headline(action, clamped),
+        rationale=rationale,
+        signal_inputs=signal_inputs,
     )
 
 
