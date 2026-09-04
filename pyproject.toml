@@ -30,6 +30,9 @@ dev = [
     "openpyxl>=3.1.5",
     "statsmodels>=0.14",
     "ipykernel>=6.29",
+    "scikit-learn>=1.5",
+    "xgboost>=2.1",
+    "lightgbm>=4.5",
 ]
 
 [tool.ruff]
